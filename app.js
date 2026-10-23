@@ -23,8 +23,9 @@
   }
 
   const WA='https://wa.me/917075040406?text=';
-  // Enquiries are emailed by the site's own /api/enquiry function (Zoho Mail SMTP).
-  const MAIL_API='/api/enquiry';
+  // Enquiries are emailed by the /api/enquiry function on Vercel (Zoho Mail SMTP).
+  // Absolute URL so the form also works on hydholidays.com, which is hosted on AWS.
+  const MAIL_API='https://hydholidays-website.vercel.app/api/enquiry';
   const sendMail=data=>fetch(MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
     .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false);
   // ---- Enquiry popup ----

@@ -75,7 +75,7 @@ module.exports = async (req, res) => {
 
   try {
     const info = await transport().sendMail({
-      from: { name: env('MAIL_FROM_NAME', 'Hyderabad Holidays Co. Website'), address: env('MAIL_FROM', 'noreply@hydholidays.com') },
+      from: { name: env('MAIL_FROM_NAME', 'Hyderabad Holidays Co. Website'), address: env('MAIL_FROM', 'contact@hydholidays.com') },
       to: env('MAIL_TO', 'contact@hydholidays.com'),
       replyTo: { name, address: email },
       subject, text, html,
