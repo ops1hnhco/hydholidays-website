@@ -23,6 +23,10 @@
   }
 
   const WA='https://wa.me/917075040406?text=';
+  // Enquiries are emailed by the site's own /api/enquiry function (Zoho Mail SMTP).
+  const MAIL_API='/api/enquiry';
+  const sendMail=data=>fetch(MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false);
   // ---- Enquiry popup ----
   const dlg=document.createElement('dialog');
   dlg.className='enq-dlg';dlg.setAttribute('aria-labelledby','dq-title');
@@ -30,19 +34,22 @@
     <div class="dq-head"><div class="dq-art" id="dq-art"></div><div><span class="eyebrow">Package enquiry</span><h2 id="dq-title">Enquire</h2><p id="dq-sub"></p></div>
       <button type="button" class="dq-x" id="dq-close" aria-label="Close">✕</button></div>
     <div class="dq-body" id="dq-fields">
+      <input class="hp" id="dq-company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
       <label>Full name<input id="dq-name" required autocomplete="name" placeholder="Your name"></label>
       <label>Phone / WhatsApp<input id="dq-phone" required inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210"></label>
+      <label class="full">Email<input id="dq-email" type="email" required autocomplete="email" placeholder="you@example.com"></label>
       <label class="dq-trip">Travel month<input id="dq-month" type="month" value="2026-12"></label>
       <label class="dq-trip">Travellers<select id="dq-pax"><option>2 adults</option><option>2 adults, 1 child</option><option>2 adults, 2 children</option><option>1 adult</option><option>Group (6+)</option></select></label>
       <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="Hotel category, flights from Hyderabad, special requests"></textarea></label>
-      <p class="dq-err full" id="dq-err" hidden>Please enter your name and a phone number with at least 10 digits.</p>
-      <button class="btn full wa-go" type="submit">Send enquiry on WhatsApp</button>
+      <p class="dq-err full" id="dq-err" hidden>Please enter your name, a phone number with at least 10 digits and a valid email.</p>
+      <button class="btn full" type="submit" id="dq-send">Send enquiry</button>
       <p class="dq-note full">We reply within one working day. Prefer to call? <b>+91 70750 40406</b></p>
     </div>
     <div class="dq-body dq-done" id="dq-done" hidden>
-      <p class="full"><b>WhatsApp didn't open automatically.</b> Tap below to send your enquiry. If WhatsApp doesn't open, call or WhatsApp <b>+91 70750 40406</b> and mention the package.</p>
-      <a class="btn full" id="dq-wa" target="_blank" rel="noopener" href="#">Send on WhatsApp</a>
-      <button type="button" class="btn ghost full" id="dq-back">Edit details</button>
+      <div class="full dq-ok" id="dq-ok"><b>Thanks, your enquiry has been sent.</b> We'll reply by email or phone within one working day.</div>
+      <div class="full dq-fail" id="dq-fail" hidden><b>We couldn't send your enquiry.</b> Please check your connection and try again, or send it to us on WhatsApp instead.</div>
+      <a class="btn ghost full" id="dq-wa" target="_blank" rel="noopener" href="#">Send on WhatsApp instead</a>
+      <button type="button" class="btn full" id="dq-back">Close</button>
     </div></form>`;
   document.body.appendChild(dlg);
   const q=id=>dlg.querySelector('#'+id);
@@ -50,7 +57,7 @@
   let cur=null,curName='';
   const openEnq=(name,o)=>{o=o||{};cur=o.title?null:(P.find(x=>x.n===name)||null);curName=name||'';
     q('dq-title').textContent=cur?cur.n+' '+cur.d:(curName||'Plan my trip');
-    q('dq-sub').textContent=cur?'From ₹'+cur.p+' per person · '+cur.t.join(' · '):(curName?'We will check your documents and reply on WhatsApp.':'Tell us where you want to go.');
+    q('dq-sub').textContent=cur?'From ₹'+cur.p+' per person · '+cur.t.join(' · '):(curName?'We will check your documents and get back to you.':'Tell us where you want to go.');
     dlg.querySelector('.dq-head .eyebrow').textContent=cur?'Package enquiry':(curName?'Visa enquiry':'Enquiry');
     if(o.title){q('dq-title').textContent=o.title;q('dq-sub').textContent=o.sub||'';dlg.querySelector('.dq-head .eyebrow').textContent=o.eyebrow||'Enquiry'}
     q('dq-msg').value=o.msg||'';
@@ -60,14 +67,19 @@
     dlg.showModal();setTimeout(()=>q('dq-name').focus(),30)};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-enq]');if(b){e.preventDefault();openEnq(b.dataset.enq)}});
   q('dq-close').addEventListener('click',()=>dlg.close());
-  q('dq-back').addEventListener('click',()=>show(true));
+  q('dq-back').addEventListener('click',()=>{if(q('dq-fail').hidden)dlg.close();else show(true)});
   dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
   q('dq-form').addEventListener('submit',e=>{e.preventDefault();
     const name=q('dq-name').value.trim(),ph=q('dq-phone').value.replace(/\D/g,'');
-    if(!name||ph.length<10){q('dq-err').hidden=false;return}
+    const em=q('dq-email').value.trim();
+    if(!name||ph.length<10||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){q('dq-err').hidden=false;return}
     const txt=['Hello Hyderabad Holidays Co., I would like a quote.',cur?`Package: ${cur.n} ${cur.d} (from ₹${cur.p} pp)`:(curName?`Enquiry: ${curName}`:''),`Name: ${name}`,`Phone: ${q('dq-phone').value.trim()}`,...(q('dq-month').closest('label').hidden?[]:[`Travel month: ${q('dq-month').value||'-'}`,`Travellers: ${q('dq-pax').value}`]),q('dq-msg').value.trim()?`Details:\n${q('dq-msg').value.trim()}`:''].filter(Boolean).join('\n');
-    const url=WA+encodeURIComponent(txt);q('dq-wa').href=url;
-    const w=window.open(url,'_blank');if(w){try{w.opener=null}catch(_){};dlg.close()}else show(false)});
+    q('dq-wa').href=WA+encodeURIComponent(txt);
+    const btn=q('dq-send');btn.disabled=true;btn.textContent='Sending…';
+    sendMail({subject:'Website enquiry: '+q('dq-title').textContent,name,phone:q('dq-phone').value.trim(),email:em,enquiry:q('dq-title').textContent,summary:q('dq-sub').textContent,
+      ...(q('dq-month').closest('label').hidden?{}:{travel_month:q('dq-month').value,travellers:q('dq-pax').value}),details:q('dq-msg').value.trim()||'-',page:location.pathname.split('/').pop()||'index.html',company:q('dq-company').value})
+      .then(ok=>{q('dq-ok').hidden=!ok;q('dq-fail').hidden=ok;q('dq-wa').hidden=ok;q('dq-back').textContent=ok?'Close':'Try again';show(false);if(ok)q('dq-form').reset()})
+      .finally(()=>{btn.disabled=false;btn.textContent='Send enquiry'})});
 
   // ---- Search bar: fields change with the selected tab ----
   const qs=$('#qs');
@@ -121,11 +133,14 @@
   }
 
   const f=$('#enq');
-  if(f) f.addEventListener('submit',e=>{e.preventDefault();
+  if(f) f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;
     const v=id=>($('#'+id)||{}).value?.trim()||'';
     const txt=['Hello Hyderabad Holidays Co., I have an enquiry.',`Name: ${v('f-name')}`,`Phone: ${v('f-phone')}`,`Service: ${v('f-svc')}`,v('f-dest')?`Destination: ${v('f-dest')}`:'',v('f-msg')?`Details: ${v('f-msg')}`:''].filter(Boolean).join('\n');
-    const url=WA+encodeURIComponent(txt);const a=$('#ok-wa');if(a)a.href=url;
-    const w=window.open(url,'_blank');if(w){try{w.opener=null}catch(_){}}$('#ok').hidden=false});
+    const a=$('#ok-wa');if(a)a.href=WA+encodeURIComponent(txt);
+    const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Sending…';
+    sendMail({subject:'Website enquiry: '+v('f-svc')+(v('f-dest')?' – '+v('f-dest'):''),name:v('f-name'),phone:v('f-phone'),email:v('f-email'),service:v('f-svc'),destination:v('f-dest')||'-',details:v('f-msg')||'-',page:'contact.html',company:v('f-company')})
+      .then(ok=>{$('#ok').hidden=!ok;$('#fail').hidden=ok;if(ok)f.reset()})
+      .finally(()=>{btn.disabled=false;btn.textContent='Send enquiry'})});
 
   $$('.copy').forEach(b=>b.addEventListener('click',()=>{const el=document.getElementById(b.dataset.c),t=el.textContent;
     const sel=()=>{const r=document.createRange();r.selectNodeContents(el);getSelection().removeAllRanges();getSelection().addRange(r)};

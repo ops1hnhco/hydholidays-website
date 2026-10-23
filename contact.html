@@ -23,13 +23,16 @@
     <p style="margin-top:10px"><b>Grievance Officer, Hyderabad Holidays Co.</b><br>contact@hydholidays.com · +91 70750 40406<br>Flat No. 406, 4th Floor, Gayathri Residency, KPHB 6th Phase Road, near MedPlus, Kukatpally, Hyderabad, Telangana 500072</p></div>
   </div>
   <form id="enq">
+    <input class="hp" id="f-company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
     <label>Name<input id="f-name" required placeholder="Your full name"></label>
     <label>Phone<input id="f-phone" required inputmode="tel" placeholder="+91"></label>
+    <label class="full">Email<input id="f-email" type="email" required autocomplete="email" placeholder="you@example.com"></label>
     <label>Destination<input id="f-dest" placeholder="Where to?"></label>
     <label>Service<select id="f-svc"><option>Holiday package</option><option>Visa</option><option>Flights</option><option>Hotels</option><option>Group / corporate travel</option></select></label>
     <label class="full">Trip details<textarea id="f-msg" rows="4" placeholder="Dates, number of travellers, budget"></textarea></label>
-    <button class="btn full wa-go" type="submit" style="justify-content:center">Send enquiry on WhatsApp</button>
-    <p class="ok" id="ok" hidden>WhatsApp should open with your enquiry filled in; tap send there. If it didn't open, <a id="ok-wa" href="#" target="_blank" rel="noopener">tap here to send it</a> or call +91 70750 40406.</p>
+    <button class="btn full" type="submit" style="justify-content:center">Send enquiry</button>
+    <p class="ok" id="ok" hidden>Thanks, your enquiry has been sent. We will reply by email or phone within one working day.</p>
+    <p class="dq-err full" id="fail" hidden>We could not send your enquiry. Please try again, or <a id="ok-wa" href="#" target="_blank" rel="noopener">send it on WhatsApp</a>.</p>
   </form>
 </div></section></main><footer><div class="wrap">
   <div><div class="brand"><img class="seal" src="logo.png" alt="" width="44" height="44"><span><b>Hyderabad Holidays Co.</b></span></div>

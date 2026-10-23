@@ -1,0 +1,9 @@
+{
+  "name": "hydholidays-website",
+  "private": true,
+  "description": "Hyderabad Holidays Co. static website with an enquiry email function",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "nodemailer": "10.0.16"
+  }
+}

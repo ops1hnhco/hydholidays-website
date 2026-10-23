@@ -284,3 +284,8 @@ ul.check li::before{content:"✓";position:absolute;left:4px;color:var(--accent)
 
 [hidden]{display:none!important}
 #dq-form{display:block;background:none;border:0;border-radius:0;padding:0}
+
+.dq-ok{background:var(--accent-soft);border-radius:12px;padding:14px 16px}
+.dq-fail{background:#fbe9e7;color:#7a231b;border-radius:12px;padding:14px 16px}
+
+.hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;opacity:0}
