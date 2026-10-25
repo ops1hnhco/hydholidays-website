@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: marketing/package-lock.json
       - run: npm ci
       # The list of past posts lives in the Actions cache, so the agent avoids repeats.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           path: marketing/.state
           key: social-history-${{ github.run_id }}
@@ -64,12 +64,12 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: always() && hashFiles('marketing/.state/history.json') != ''
         with:
           path: marketing/.state
           key: social-history-${{ github.run_id }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: post
