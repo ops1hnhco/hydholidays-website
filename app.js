@@ -26,8 +26,15 @@
   // Enquiries are emailed by the /api/enquiry function on Vercel (Zoho Mail SMTP).
   // Absolute URL so the form also works on hydholidays.com, which is hosted on AWS.
   const MAIL_API='https://hydholidays-website.vercel.app/api/enquiry';
+  // Google Analytics events, imported into Google Ads as conversions: a sent enquiry
+  // (generate_lead) and taps on WhatsApp or phone links.
+  const track=(name,params)=>{if(typeof gtag==='function')gtag('event',name,Object.assign({transport_type:'beacon'},params))};
+  document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+    if(a.href.indexOf('wa.me/')>-1)track('whatsapp_click',{link_url:a.href.split('?')[0],page_path:location.pathname});
+    else if(a.href.indexOf('tel:')===0)track('phone_click',{page_path:location.pathname})});
   const sendMail=data=>fetch(MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-    .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false);
+    .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false)
+    .then(ok=>{if(ok)track('generate_lead',{form_name:data.service||data.enquiry||'enquiry',page_path:location.pathname});return ok});
   // ---- Enquiry popup ----
   const dlg=document.createElement('dialog');
   dlg.className='enq-dlg';dlg.setAttribute('aria-labelledby','dq-title');
