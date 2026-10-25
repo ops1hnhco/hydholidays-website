@@ -2,7 +2,7 @@
 // Each day Claude researches the web for something worth posting to Indian travellers
 // in turn: a domestic package idea, a flight offer, an international package idea or travel news,
 // checks what was posted recently, writes captions for each platform and the text for a
-// branded card over a Pexels photo of the destination. The agent renders a still image
+// branded card over a Pixabay (or Pexels) photo of the destination. The agent renders a still image
 // and a 15-second video, and posts Reels to Facebook and Instagram, a Short to YouTube, and the image to X.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
 // (see marketing/README.md). A platform without credentials is skipped.
@@ -213,22 +213,35 @@ const THEMES = [
 
 // ---- Photo ----
 
-// A free, licensed photo from Pexels for the post's destination (needs PEXELS_API_KEY).
-// Skips photos used in earlier posts. Without a key or a match, the post uses a plain brand card.
+// A free, licensed photo of the post's destination from Pixabay (PIXABAY_API_KEY) or Pexels
+// (PEXELS_API_KEY). Skips photos used in earlier posts. Without a key or a match, the post uses a
+// plain brand card. Each search returns candidates as { id, image, credit, url }.
+async function searchPixabay(query, key) {
+  const search = orientation => fetch(`https://pixabay.com/api/?${new URLSearchParams({ key, q: query, image_type: 'photo', orientation, safesearch: 'true', min_width: '1080', per_page: '20' })}`).then(r => r.json());
+  let { hits = [] } = await search('vertical');
+  if (!hits.length) ({ hits = [] } = await search('all'));
+  return hits.map(h => ({ id: `pixabay-${h.id}`, image: h.largeImageURL, credit: `Photo: ${h.user} on Pixabay`, url: h.pageURL }));
+}
+
+async function searchPexels(query, key) {
+  const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query, orientation: 'portrait', size: 'large', per_page: '15' })}`, { headers: { Authorization: key } });
+  const { photos = [] } = await r.json();
+  return photos.map(p => ({ id: p.id, image: `${p.src.original}?auto=compress&cs=tinysrgb&w=2160`, credit: `Photo: ${p.photographer} on Pexels`, url: p.url }));
+}
+
 async function findPhoto(query, history) {
-  const key = env('PEXELS_API_KEY');
-  if (!key || !query) return null;
+  const pixabay = env('PIXABAY_API_KEY'), pexels = env('PEXELS_API_KEY');
+  if (!query || !(pixabay || pexels)) return null;
   try {
-    const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query, orientation: 'portrait', size: 'large', per_page: '15' })}`, { headers: { Authorization: key } });
-    const { photos = [] } = await r.json();
+    const found = pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels);
     const used = new Set(history.map(h => h.photo).filter(Boolean));
-    const p = photos.find(x => !used.has(x.id)) || photos[0];
-    if (!p) { console.log(`No Pexels photo for "${query}", using a plain card`); return null; }
-    const img = await fetch(`${p.src.original}?auto=compress&cs=tinysrgb&w=2160`);
+    const p = found.find(x => !used.has(x.id)) || found[0];
+    if (!p) { console.log(`No photo found for "${query}", using a plain card`); return null; }
+    const img = await fetch(p.image);
     if (!img.ok) throw new Error(`HTTP ${img.status}`);
-    return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: `Photo: ${p.photographer} on Pexels`, url: p.url };
+    return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url };
   } catch (err) {
-    console.log(`Pexels photo failed (${err.message}), using a plain card`);
+    console.log(`Photo search failed (${err.message}), using a plain card`);
     return null;
   }
 }

@@ -17,10 +17,10 @@ Every day at 19:30 IST, when Indian audiences are most active on social media,
    recent posts so it doesn't repeat a destination or story within 30 days.
 3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only, each
    opening with a hook line. It never invents prices or offers of its own.
-4. **Designs the visuals.** It finds a free, licensed photo of the destination on Pexels and puts the
+4. **Designs the visuals.** It finds a free, licensed photo of the destination on Pixabay and puts the
    headline, logo, website and WhatsApp number over it: a 1080×1350 image and a 15-second vertical
    video (the photo slowly zooms, the text fades in, music plays). The photographer is credited in the
-   captions. Without a Pexels key or a matching photo, it uses a plain brand-colour card instead.
+   captions. Without a photo key or a matching photo, it uses a plain brand-colour card instead.
 5. **Posts** the video as a **Reel** on the Facebook Page and Instagram, as a **Short** on YouTube, and
    the image on X. If a Reel upload fails, that platform gets the image instead. Facebook and X posts
    link to www.hydholidays.com.
@@ -37,7 +37,8 @@ repository secret**. A platform whose secrets are missing is skipped, so you can
 | Secret | Where to get it |
 |---|---|
 | `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys. Web search must be allowed for the organisation (Console → Settings → Privacy / Features) |
-| `PEXELS_API_KEY` | pexels.com/api → sign up (free) → **Your API key**. Free for commercial use; 200 searches an hour is far more than needed |
+| `PIXABAY_API_KEY` | Sign up free at pixabay.com, then open pixabay.com/api/docs: your key is shown under **Parameters → key**. Photos are free for commercial use, no credit required |
+| `PEXELS_API_KEY` | Optional alternative to Pixabay (pexels.com/api). Pexels paused new keys in October 2026; Pixabay is used when both are set |
 | `FB_PAGE_ID` | `1460168273837936` (Hyderabad Holidays Co. Page, from Business Suite → Settings → Pages. Not the 61595522356835 in the Page's web address, which is its profile ID) |
 | `FB_PAGE_ACCESS_TOKEN` | The "Holiday Poster" system user token (see "Meta token" below). Used for both Facebook and Instagram |
 | `IG_USER_ID` | `17841475375430163` (@hydholidaysco, from Business Suite → Settings → Instagram accounts) |
