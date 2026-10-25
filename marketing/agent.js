@@ -2,8 +2,8 @@
 // Each day Claude researches the web for something worth posting to Indian travellers
 // in turn: a domestic package idea, a flight offer, an international package idea or travel news,
 // checks what was posted recently, writes captions for each platform and the text for a
-// branded image card. The agent renders the card and posts to Facebook, Instagram and X,
-// and turns the card into a 12-second YouTube Short.
+// branded card over a Pexels photo of the destination. The agent renders a still image
+// and a 15-second video, and posts Reels to Facebook and Instagram, a Short to YouTube, and the image to X.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
 // (see marketing/README.md). A platform without credentials is skipped.
 //
@@ -60,7 +60,7 @@ const ABOUT = `Hyderabad Holidays Co. is a travel agency in Hyderabad, India. It
 
 const RESEARCH_SYSTEM = `You are the social media manager for Hyderabad Holidays Co. ${ABOUT}
 
-Every day you choose and research one post that goes live on Facebook, Instagram and X without anyone checking it first. You are told which kind of post today is. Your job in this step is to choose the topic and gather the facts for it.
+Every day you choose and research one post that goes live on Facebook, Instagram, X and YouTube without anyone checking it first. You are told which kind of post today is. Your job in this step is to choose the topic and gather the facts for it.
 
 Choosing:
 - Think about the time of year in India: school holidays, festive and long-weekend travel, and which places are in season.
@@ -92,6 +92,8 @@ By kind:
 
 Voice: warm, clear and helpful, like a knowledgeable local travel agent. Plain Indian English. At most two or three emojis per post. No clickbait, no ALL CAPS, no urgency claims. End by inviting readers to plan the trip with us.
 
+The first line is the only part people see before they decide to keep reading, so open every caption with a hook of at most 12 words: a question to the reader, a surprising fact from the brief, or what changes for them. Never start with our company name or "Good news".
+
 Platforms:
 - Facebook: 60-120 words. Our website link is added after your text.
 - Instagram: 60-120 words, then 6-10 relevant hashtags on their own line. Links are not clickable there, so ask readers to WhatsApp ${WHATSAPP} or tap the link in our bio.
@@ -99,7 +101,9 @@ Platforms:
 - YouTube Short: a title of at most 80 characters (no hashtags; "#Shorts" is added), and a description of 60-150 words that ends with 3-5 hashtags. Our website and WhatsApp details are added after the description.
 Write each platform's text separately so they do not read as copies.
 
-The image is a branded card made from your card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).`;
+Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the destination slowly zooming, with your card text over it. The same design is the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
+
+photo_query is a stock-photo search of 2-5 words for a beautiful, recognisable photo of the place the post is about, e.g. "Tashkent mosque", "Munnar tea plantation", "Bangkok temple". For news without one place, describe a fitting travel scene, e.g. "airport departure board" or "Eiffel Tower Paris". Never ask for people's faces, flags or logos.`;
 
 const Post = z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the post is confirmed in it'),
@@ -110,6 +114,7 @@ const Post = z.object({
     headline: z.string(),
     subline: z.string(),
   }),
+  photo_query: z.string(),
   facebook: z.string(),
   instagram: z.string(),
   x: z.string(),
@@ -206,44 +211,107 @@ const THEMES = [
   { bg: '#f7f8f7', band: '#0f6b6b', head: '#151a1c', kicker: '#c9962b', sub: '#5b6468', bandFg: '#e2f0ee' },
 ];
 
-// Card: kicker, headline, supporting line, logo, contact band. 1080x1350 (4:5) for the feeds,
-// 1080x1920 (9:16) for the YouTube Short, with the text block centred in the extra height.
-async function renderCard({ kicker, headline, subline }, kind, H = 1350) {
+// ---- Photo ----
+
+// A free, licensed photo from Pexels for the post's destination (needs PEXELS_API_KEY).
+// Skips photos used in earlier posts. Without a key or a match, the post uses a plain brand card.
+async function findPhoto(query, history) {
+  const key = env('PEXELS_API_KEY');
+  if (!key || !query) return null;
+  try {
+    const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query, orientation: 'portrait', size: 'large', per_page: '15' })}`, { headers: { Authorization: key } });
+    const { photos = [] } = await r.json();
+    const used = new Set(history.map(h => h.photo).filter(Boolean));
+    const p = photos.find(x => !used.has(x.id)) || photos[0];
+    if (!p) { console.log(`No Pexels photo for "${query}", using a plain card`); return null; }
+    const img = await fetch(`${p.src.original}?auto=compress&cs=tinysrgb&w=2160`);
+    if (!img.ok) throw new Error(`HTTP ${img.status}`);
+    return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: `Photo: ${p.photographer} on Pexels`, url: p.url };
+  } catch (err) {
+    console.log(`Pexels photo failed (${err.message}), using a plain card`);
+    return null;
+  }
+}
+
+// ---- Image and video ----
+
+// The design is two layers: a background (the photo, or a brand colour) and a transparent text
+// layer on top (dark fade, kicker, headline, supporting line, logo, contact band). The still image
+// combines them; the video zooms the background slowly and fades the text layer in over it.
+// Feed posts are 1080x1350 (4:5). Reels and Shorts are 1080x1920 (9:16); there the apps' own buttons
+// cover the top-right corner and the bottom ~400px, so the logo and contact band move inside that.
+async function background(photo, kind, H) {
+  if (photo) return sharp(photo.buffer).resize(1080, H, { fit: 'cover', position: sharp.strategy.attention }).jpeg({ quality: 90 }).toBuffer();
   const t = THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
-  const W = 1080, X0 = 90;
+  return sharp({ create: { width: 1080, height: H, channels: 3, background: t.bg } }).jpeg().toBuffer();
+}
+
+async function textLayer({ kicker, headline, subline }, kind, H, onPhoto) {
+  const t = onPhoto
+    ? { band: '#0f6b6b', head: '#ffffff', kicker: '#e0b453', sub: '#e2f0ee', bandFg: '#e2f0ee' }
+    : THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
+  const W = 1080, X0 = 90, tall = H > 1350;
   let size = 96, lines;
   do { lines = wrap(headline, Math.floor(900 / (size * 0.52))); } while (lines.length > 4 && (size -= 8) > 56);
   const sub = wrap(subline || '', 34).slice(0, 3);
-  // In a Short, YouTube's own buttons cover the top-right corner and the bottom ~400px,
-  // so the logo and contact band move inside that area there.
-  const logoTop = H > 1350 ? 230 : 80, bandY = H > 1350 ? H - 640 : H - 210;
-  const top = 560 + (H > 1350 ? 160 : 0) - (lines.length - 1) * size * 0.55;
+  const logoTop = tall ? 230 : 80, bandY = tall ? H - 640 : H - 210;
+  // On a photo the text sits just above the contact band; on a plain card it is centred.
+  const subTop = (lines.length - 1) * size * 1.12 + 78; // first supporting line, below the last headline line
+  const below = sub.length ? subTop + (sub.length - 1) * 52 : (lines.length - 1) * size * 1.12;
+  const top = onPhoto ? bandY - 70 - below : 560 + (tall ? 160 : 0) - (lines.length - 1) * size * 0.55;
+  const fadeFrom = top - size - 320;
+  const shadow = onPhoto ? ' filter="url(#shadow)"' : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
-  <rect width="${W}" height="${H}" fill="${t.bg}"/>
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="0.35" stop-color="#000" stop-opacity="0.55"/><stop offset="1" stop-color="#000" stop-opacity="0.85"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-20%" width="110%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feOffset dy="2"/><feComponentTransfer><feFuncA type="linear" slope="0.6"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  ${onPhoto ? `<rect y="${fadeFrom}" width="${W}" height="${H - fadeFrom}" fill="url(#fade)"/>` : ''}
   <circle cx="${W - 165}" cy="${logoTop + 75}" r="88" fill="#ffffff"/>
   <rect y="${bandY}" width="${W}" height="210" fill="${t.band}"/>
   <rect x="${X0}" y="${top - size - 70}" width="90" height="6" fill="#c9962b"/>
-  <text x="${X0}" y="${top - size - 20}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="34" font-weight="700" letter-spacing="4" fill="${t.kicker}">${xml(kicker.toUpperCase())}</text>
-  ${lines.map((l, i) => `<text x="${X0}" y="${top + i * size * 1.12}" font-family="Georgia, 'DejaVu Serif', serif" font-size="${size}" fill="${t.head}">${xml(l)}</text>`).join('\n  ')}
-  ${sub.map((l, i) => `<text x="${X0}" y="${top + lines.length * size * 1.12 + 40 + i * 52}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="40" fill="${t.sub}">${xml(l)}</text>`).join('\n  ')}
+  <text x="${X0}" y="${top - size - 20}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="34" font-weight="700" letter-spacing="4" fill="${t.kicker}"${shadow}>${xml(kicker.toUpperCase())}</text>
+  ${lines.map((l, i) => `<text x="${X0}" y="${top + i * size * 1.12}" font-family="Georgia, 'DejaVu Serif', serif" font-size="${size}" fill="${t.head}"${shadow}>${xml(l)}</text>`).join('\n  ')}
+  ${sub.map((l, i) => `<text x="${X0}" y="${top + subTop + i * 52}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="40" fill="${t.sub}"${shadow}>${xml(l)}</text>`).join('\n  ')}
   <text x="${X0}" y="${bandY + 90}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="40" font-weight="700" fill="#ffffff">Hyderabad Holidays Co.</text>
   <text x="${X0}" y="${bandY + 144}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="32" fill="${t.bandFg}">hydholidays.com  ·  WhatsApp ${WHATSAPP}</text>
 </svg>`;
   const logo = await sharp(LOGO).resize(150, 150).toBuffer();
-  return sharp(Buffer.from(svg)).composite([{ input: logo, top: logoTop, left: W - 240 }]).jpeg({ quality: 90 }).toBuffer();
+  return sharp(Buffer.from(svg)).composite([{ input: logo, top: logoTop, left: W - 240 }]).png().toBuffer();
 }
 
-// 12-second 1080x1920 Short from the vertical card: slow zoom, fade in and out.
-// Uses marketing/music.mp3 as the soundtrack if present (royalty-free only), otherwise silence.
-async function renderShort(post) {
-  const card = path.join(OUT_DIR, 'short.jpg'), video = path.join(OUT_DIR, 'short.mp4');
-  fs.writeFileSync(card, await renderCard(post.card, post.kind, 1920));
-  const music = path.join(HERE, 'music.mp3');
-  const audio = fs.existsSync(music) ? ['-i', music] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
+async function renderImage(post, photo) {
+  const bg = await background(photo, post.kind, 1350);
+  return sharp(bg).composite([{ input: await textLayer(post.card, post.kind, 1350, !!photo) }]).jpeg({ quality: 90 }).toBuffer();
+}
+
+// Royalty-free tracks in marketing/music/*.mp3 take turns, one per day (or marketing/music.mp3).
+function pickMusic(now) {
+  const dir = path.join(HERE, 'music');
+  const tracks = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /\.mp3$/i.test(f)).sort().map(f => path.join(dir, f)) : [];
+  if (tracks.length) return tracks[Math.floor(now.getTime() / 86400e3) % tracks.length];
+  const one = path.join(HERE, 'music.mp3');
+  return fs.existsSync(one) ? one : null;
+}
+
+// 15-second 1080x1920 video for Reels and Shorts: the photo zooms in slowly, the text fades in,
+// the music fades out at the end. Silent if there is no music.
+async function renderVideo(post, photo, now) {
+  const bg = path.join(OUT_DIR, 'video-bg.jpg'), text = path.join(OUT_DIR, 'video-text.png'), video = path.join(OUT_DIR, 'video.mp4');
+  fs.writeFileSync(bg, await background(photo, post.kind, 1920));
+  fs.writeFileSync(text, await textLayer(post.card, post.kind, 1920, !!photo));
+  const music = pickMusic(now);
+  const audio = music ? ['-stream_loop', '-1', '-i', music] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
   execFileSync(ffmpegPath, [
-    '-y', '-loop', '1', '-i', card, ...audio,
-    '-filter_complex', "[0:v]scale=2160:3840,zoompan=z='min(zoom+0.00012,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=360:s=1080x1920:fps=30,fade=t=in:st=0:d=0.6,fade=t=out:st=11.3:d=0.7[v];[1:a]afade=t=out:st=10.5:d=1.5[a]",
-    '-map', '[v]', '-map', '[a]', '-t', '12', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'medium', '-crf', '20',
+    '-y', '-loop', '1', '-i', bg, '-loop', '1', '-i', text, ...audio,
+    '-filter_complex',
+    "[0:v]scale=2160:3840,zoompan=z='min(zoom+0.00035,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=450:s=1080x1920:fps=30[bg];" +
+    '[1:v]format=rgba,fade=t=in:st=0.3:d=0.9:alpha=1[txt];' +
+    '[bg][txt]overlay=0:0,fade=t=out:st=14.2:d=0.8,format=yuv420p[v];' +
+    '[2:a]afade=t=in:st=0:d=0.5,afade=t=out:st=12.5:d=2.5[a]',
+    '-map', '[v]', '-map', '[a]', '-t', '15', '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
     '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', video,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   return video;
@@ -274,28 +342,62 @@ async function getPageToken() {
   return (pageToken = r.access_token || given);
 }
 
-async function postFacebook(text, image) {
+// Send a video file to Meta's upload server (used for both Facebook and Instagram Reels).
+async function uploadVideo(url, token, video) {
+  const r = await fetch(url, { method: 'POST', headers: { Authorization: `OAuth ${token}`, offset: '0', file_size: String(video.length) }, body: video });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false || j.error) throw new Error(j.error?.message || j.debug_info?.message || `video upload HTTP ${r.status}`);
+}
+
+// Instagram processes a Reel or image before it can be published; wait for that.
+async function waitForInstagram(id, token, what) {
+  for (let i = 0; i < 40; i++) {
+    const s = await (await fetch(`${GRAPH}/${id}?fields=status_code&access_token=${encodeURIComponent(token)}`)).json();
+    if (s.status_code === 'FINISHED') return;
+    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`${what} processing failed (${s.status_code})`);
+    await new Promise(r => setTimeout(r, 5000));
+  }
+  throw new Error(`${what} still processing after 3 minutes`);
+}
+
+async function postFacebookReel(text, videoFile) {
+  const token = await getPageToken(), page = env('FB_PAGE_ID'), video = fs.readFileSync(videoFile);
+  const { video_id, upload_url } = await graph(`${page}/video_reels`, { upload_phase: 'start', access_token: token });
+  await uploadVideo(upload_url, token, video);
+  await graph(`${page}/video_reels`, { upload_phase: 'finish', video_id, video_state: 'PUBLISHED', description: text, access_token: token });
+  return `reel ${video_id}`;
+}
+
+async function postFacebookPhoto(text, image) {
   const j = await graph(`${env('FB_PAGE_ID')}/photos`, { source: image, message: text, access_token: await getPageToken() });
-  return j.post_id || j.id;
+  return `photo ${j.post_id || j.id}`;
+}
+
+async function postInstagramReel(caption, videoFile) {
+  const token = await getPageToken(), ig = env('IG_USER_ID'), video = fs.readFileSync(videoFile);
+  const c = await graph(`${ig}/media`, { media_type: 'REELS', upload_type: 'resumable', caption, share_to_feed: 'true', thumb_offset: '2500', access_token: token });
+  await uploadVideo(c.uri || `https://rupload.facebook.com/ig-api-upload/${GRAPH.split('/').pop()}/${c.id}`, token, video);
+  await waitForInstagram(c.id, token, 'Instagram Reel');
+  return `reel ${(await graph(`${ig}/media_publish`, { creation_id: c.id, access_token: token })).id}`;
 }
 
 // Instagram only takes an image URL. Upload the image to the Page as an unpublished
 // photo and hand Instagram that photo's address.
-async function postInstagram(caption, image) {
+async function postInstagramPhoto(caption, image) {
   const token = await getPageToken(), ig = env('IG_USER_ID');
   const { id: photoId } = await graph(`${env('FB_PAGE_ID')}/photos`, { source: image, published: 'false', access_token: token });
   const photo = await (await fetch(`${GRAPH}/${photoId}?fields=images&access_token=${encodeURIComponent(token)}`)).json();
   const imageUrl = photo.images?.[0]?.source;
   if (!imageUrl) throw new Error(photo.error?.message || 'Could not get an image URL for Instagram');
   const { id } = await graph(`${ig}/media`, { image_url: imageUrl, caption, access_token: token });
-  // Instagram fetches the image first; publishing before it finishes fails.
-  for (let i = 0; i < 12; i++) {
-    const s = await (await fetch(`${GRAPH}/${id}?fields=status_code&access_token=${encodeURIComponent(token)}`)).json();
-    if (s.status_code === 'FINISHED') break;
-    if (s.status_code === 'ERROR' || s.status_code === 'EXPIRED') throw new Error(`Instagram could not process the image (${s.status_code})`);
-    await new Promise(r => setTimeout(r, 5000));
-  }
-  return (await graph(`${ig}/media_publish`, { creation_id: id, access_token: token })).id;
+  await waitForInstagram(id, token, 'Instagram image');
+  return `photo ${(await graph(`${ig}/media_publish`, { creation_id: id, access_token: token })).id}`;
+}
+
+// Reels reach far more people than photos, so post a Reel; if that fails, post the photo instead.
+async function reelOrPhoto(reel, photo) {
+  try { return await reel(); }
+  catch (err) { return `${await photo()} (Reel failed: ${err.message})`; }
 }
 
 async function postX(text, image) {
@@ -363,26 +465,31 @@ for (let attempt = 1; attempt <= 2; attempt++) {
 const held = !(confirmed(brief) && post.ready);
 console.log(`Today: ${post.kind} · ${post.topic}${DRY_RUN ? ' · DRY RUN' : ''}${held ? ' · HELD, facts not confirmed' : ''}\n\n--- Research brief ---\n${brief}`);
 
-const image = await renderCard(post.card, post.kind);
 fs.mkdirSync(OUT_DIR, { recursive: true });
+const photo = await findPhoto(post.photo_query, history);
+console.log(`Photo: ${photo ? `${photo.url} (search "${post.photo_query}")` : 'none, plain card'}`);
+const image = await renderImage(post, photo);
 fs.writeFileSync(path.join(OUT_DIR, 'post.jpg'), image);
-const short = await renderShort(post);
+const video = await renderVideo(post, photo, now);
 
 const link = `${SITE}/`;
-const ytTitle = `${post.youtube.title.trim().slice(0, 90)} #Shorts`;
+const credit = photo ? `\n\n📷 ${photo.credit}` : '';
 const out = {
-  facebook: `${post.facebook.trim()}\n\n${link}`,
-  instagram: post.instagram.trim(),
+  facebook: `${post.facebook.trim()}\n\n${link}${credit}`,
+  instagram: `${post.instagram.trim()}${credit}`,
   x: fitX(post.x.trim(), link),
-  youtube: { title: ytTitle, description: `${post.youtube.description.trim()}\n\nPlan your trip with Hyderabad Holidays Co.\nWhatsApp ${WHATSAPP} · ${link}` },
+  youtube: {
+    title: `${post.youtube.title.trim().slice(0, 90)} #Shorts`,
+    description: `${post.youtube.description.trim()}\n\nPlan your trip with Hyderabad Holidays Co.\nWhatsApp ${WHATSAPP} · ${link}${credit}`,
+  },
 };
-fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, brief, final: out }, null, 2));
+fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, photo: photo && { url: photo.url, credit: photo.credit }, brief, final: out }, null, 2));
 
 const platforms = [
-  { name: 'Facebook', keys: ['FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.facebook, run: () => postFacebook(out.facebook, image) },
-  { name: 'Instagram', keys: ['IG_USER_ID', 'FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.instagram, run: () => postInstagram(out.instagram, image) },
+  { name: 'Facebook', keys: ['FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.facebook, run: () => reelOrPhoto(() => postFacebookReel(out.facebook, video), () => postFacebookPhoto(out.facebook, image)) },
+  { name: 'Instagram', keys: ['IG_USER_ID', 'FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.instagram, run: () => reelOrPhoto(() => postInstagramReel(out.instagram, video), () => postInstagramPhoto(out.instagram, image)) },
   { name: 'X', keys: ['X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET'], text: out.x, run: () => postX(out.x, image) },
-  { name: 'YouTube', keys: ['YT_CLIENT_ID', 'YT_CLIENT_SECRET', 'YT_REFRESH_TOKEN'], text: `${out.youtube.title}\n\n${out.youtube.description}`, run: () => postYouTube(out.youtube, short) },
+  { name: 'YouTube', keys: ['YT_CLIENT_ID', 'YT_CLIENT_SECRET', 'YT_REFRESH_TOKEN'], text: `${out.youtube.title}\n\n${out.youtube.description}`, run: () => postYouTube(out.youtube, video) },
 ];
 
 // PLATFORMS="facebook,instagram" posts to those only (for re-running after one platform failed).
@@ -405,13 +512,13 @@ for (const p of platforms) {
 }
 
 if (posted) {
-  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources });
+  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id });
   saveHistory(history);
 }
 if (env('GITHUB_STEP_SUMMARY')) {
   fs.appendFileSync(env('GITHUB_STEP_SUMMARY'), [
     `## ${post.kind}: ${post.topic}${held ? ' (HELD: facts not confirmed, nothing posted)' : ''}`,
-    `Image: download the run's "post" artifact.`,
+    `Photo: ${photo ? `${photo.url} (${photo.credit})` : 'none, plain brand card'}. Image and video: download the run's "post" artifact.`,
     `Sources:\n${post.sources.map(s => `- ${s}`).join('\n') || '- none listed'}`,
     ...report,
     `<details><summary>Research brief</summary>\n\n${brief}\n\n</details>\n`,

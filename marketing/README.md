@@ -1,7 +1,7 @@
 # Social media agent
 
-Every day at 10:00 IST, `.github/workflows/social-post.yml` runs `agent.js`. It does not use the
-website's content. Each day it:
+Every day at 19:30 IST, when Indian audiences are most active on social media,
+`.github/workflows/social-post.yml` runs `agent.js`. It does not use the website's content. Each day it:
 
 1. **Takes the next kind of post** in this four-day cycle:
 
@@ -15,12 +15,15 @@ website's content. Each day it:
 2. **Researches on the web.** Claude searches official sources (airlines, governments, tourism boards)
    and established news outlets, and only keeps facts it could confirm. It also checks the list of
    recent posts so it doesn't repeat a destination or story within 30 days.
-3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only. It never
-   invents prices or offers of its own.
-4. **Designs a branded 1080×1350 image card** with the headline, logo, website and WhatsApp number, in
-   one of three brand colour schemes, and a **12-second vertical YouTube Short** made from the same card.
-5. **Posts** to the Facebook Page, Instagram, X and YouTube. Facebook and X posts link to
-   www.hydholidays.com.
+3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only, each
+   opening with a hook line. It never invents prices or offers of its own.
+4. **Designs the visuals.** It finds a free, licensed photo of the destination on Pexels and puts the
+   headline, logo, website and WhatsApp number over it: a 1080×1350 image and a 15-second vertical
+   video (the photo slowly zooms, the text fades in, music plays). The photographer is credited in the
+   captions. Without a Pexels key or a matching photo, it uses a plain brand-colour card instead.
+5. **Posts** the video as a **Reel** on the Facebook Page and Instagram, as a **Short** on YouTube, and
+   the image on X. If a Reel upload fails, that platform gets the image instead. Facebook and X posts
+   link to www.hydholidays.com.
 
 Posts go live without review. Each run's captions, sources, research notes and results are on
 **GitHub → Actions → Daily social post → (run) → Summary**, and the image and video are in the run's
@@ -34,6 +37,7 @@ repository secret**. A platform whose secrets are missing is skipped, so you can
 | Secret | Where to get it |
 |---|---|
 | `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys. Web search must be allowed for the organisation (Console → Settings → Privacy / Features) |
+| `PEXELS_API_KEY` | pexels.com/api → sign up (free) → **Your API key**. Free for commercial use; 200 searches an hour is far more than needed |
 | `FB_PAGE_ID` | `1460168273837936` (Hyderabad Holidays Co. Page, from Business Suite → Settings → Pages. Not the 61595522356835 in the Page's web address, which is its profile ID) |
 | `FB_PAGE_ACCESS_TOKEN` | The "Holiday Poster" system user token (see "Meta token" below). Used for both Facebook and Instagram |
 | `IG_USER_ID` | `17841475375430163` (@hydholidaysco, from Business Suite → Settings → Instagram accounts) |
@@ -55,8 +59,8 @@ permissions `business_management`, `instagram_basic`, `instagram_content_publish
 `pages_manage_posts`, `pages_read_engagement`. Put it in the `FB_PAGE_ACCESS_TOKEN` secret. The agent
 swaps it for the Page's own token on each run. **Revoke tokens** on the same screen cancels old ones.
 
-Instagram needs the Facebook secrets too: the agent uploads the image to the Page as an unpublished
-photo and gives Instagram that photo's address.
+Instagram needs the Facebook secrets too: it uses the Page's token, and for image posts the agent
+uploads the image to the Page as an unpublished photo and gives Instagram that photo's address.
 
 ### X
 1. At developer.x.com, use a plan that allows posting and media upload (check current pricing).
@@ -84,8 +88,17 @@ photo and gives Instagram that photo's address.
    uploads the Short as private, and the run Summary says so. You can make individual videos public
    by hand in YouTube Studio.
 
-Optional music: put a royalty-free track at `marketing/music.mp3` and every Short uses it (it fades
-out at the end). Without it the Shorts are silent.
+### Music
+Put royalty-free `.mp3` tracks in `marketing/music/` and the videos take turns using them, one a day
+(each fades in and out; tracks shorter than 15 seconds loop). Without any, the videos are silent.
+
+- Only use music you're licensed to use. **Pixabay Music** (pixabay.com/music) is free for commercial
+  use with no credit needed; search "travel", "upbeat" or "indian". Never use film or pop songs:
+  YouTube and Instagram mute or block them, and they can bring copyright claims.
+- To add tracks without a terminal: GitHub repo → **Code** → open the `marketing` folder → **Add file →
+  Upload files**, and drop the files in a folder named `music` (type `music/` before the file name, or
+  upload into `marketing/music` if it already exists). Then **Commit changes**.
+- Keep each file under a few MB; a 30–60 second clip is plenty.
 
 ## Test it
 GitHub → Actions → **Daily social post** → **Run workflow**. "Plan and write only" is ticked by
@@ -99,15 +112,30 @@ download the **post** artifact to see the image. Untick it to post now.
   It researches and writes a new post, so it won't be identical to the one the others got.
 
 Locally: `cd marketing && npm install`, set the same variables, then `npm run dry-run`. The image,
-the Short (`short.mp4`) and the full post are saved in `marketing/out/`. `KIND="flight offer"` and `BRIEF="..."` work the same way.
+the video (`video.mp4`) and the full post are saved in `marketing/out/`. `KIND="flight offer"` and `BRIEF="..."` work the same way.
 
 ## Notes
 - **Memory.** The list of past posts is kept in the GitHub Actions cache (the last 120). Only runs that
   actually posted are recorded. If the cache is cleared, the agent simply starts a new list.
 - **GitHub pauses scheduled workflows after 60 days with no commits.** It emails a warning first;
   re-enable the workflow on the Actions tab, or push any commit.
-- **Cost.** Two Claude Opus 5.5 requests with up to 20 web searches and 10 page reads a day, roughly 20-50 US cents a day (twice that on a day the research has to be redone).
+- **Cost.** Claude: two Opus 5.5 requests with up to 20 web searches and 10 page reads a day, roughly 20-50 US cents a day (twice that on a day the research has to be redone).
   If Claude declines a request, the API retries it on a fallback model automatically
   (`fallbacks: "default"`).
 - If a platform fails (for example, an expired token), the others still post, and the run is marked
   failed. GitHub emails you about failed runs.
+
+## Growing the audience
+The agent posts consistently, but new accounts' posts are shown to very few people until they have
+some followers and engagement. What helps most:
+- **Share the Page and Instagram** with your WhatsApp contacts, groups and past customers, and ask them
+  to follow. Add the Instagram and Facebook links to your WhatsApp Business profile, email signature and
+  the website.
+- **Reply to every comment and message** within a few hours; the apps show posts with active
+  conversations to more people.
+- **Boost the best post each week** (Meta Business Suite → the post → Boost, ₹200–500, audience:
+  Hyderabad, ages 25–55, interests travel). Boost posts that already do well rather than new ones.
+- **Change Instagram's display name** from "Sam Reddy" to Hyderabad Holidays Co., and fill in the bio
+  with the WhatsApp number and website.
+- Check **Business Suite → Insights** once a week to see which kinds of post do best, and use the
+  **Kind** and **Brief** options to post more of those.
