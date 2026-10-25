@@ -176,7 +176,7 @@ the way to collect numbers from the ads themselves.
 
 ## 5. Tracking (do this first)
 
-1. **Upload the new `app.js` to the AWS site.** It sends `generate_lead` (enquiry form sent),
+1. **Done (live since 26 October 2026):** the site's `app.js` sends `generate_lead` (enquiry form sent),
    `whatsapp_click` and `phone_click` to Google Analytics (G-GRLZLMJQ62).
 2. Google Analytics → Admin → Events: mark `generate_lead` and `whatsapp_click` as **key events**
    (they appear about a day after the first ones happen).
@@ -189,7 +189,7 @@ the way to collect numbers from the ads themselves.
 ## 6. Order of work
 
 1. Add funds (prepaid, at least ₹10,000 so ads don't stop mid-week). Billing is done by you.
-2. Upload `app.js` to AWS; set up the tracking above.
+2. Set up the tracking above (the website part is already live).
 3. Pause the two Smart campaigns.
 4. Build the four Search campaigns (paused), review, then enable.
 5. Week 1–4: every week, check the search terms report, add negative keywords, move budget from

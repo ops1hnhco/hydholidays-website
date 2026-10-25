@@ -24,9 +24,9 @@ with `app.post('/api/enquiry', express.json(), handler)` and add `res.status`/`r
 On Netlify or AWS Lambda it needs a small wrapper; ask before switching.
 
 ## Current setup
-hydholidays.com is served from AWS; only the enquiry function runs on Vercel
-(https://hydholidays-website.vercel.app). `app.js` posts to that absolute URL, so after
-changing any page, upload it to AWS too. Every site that posts enquiries must be listed in
+hydholidays.com is served from AWS (S3 + CloudFront) and deploys automatically when `main` is pushed
+to GitHub; only the enquiry function runs on Vercel (https://hydholidays-website.vercel.app), and
+`app.js` posts to that absolute URL. Every site that posts enquiries must be listed in
 `ALLOWED_ORIGINS` on Vercel.
 
 ## Social media agent
