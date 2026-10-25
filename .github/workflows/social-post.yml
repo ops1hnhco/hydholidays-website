@@ -1,0 +1,80 @@
+# Researches, writes and posts one travel post a day to Facebook, Instagram, X and YouTube Shorts.
+# Setup and secrets: marketing/README.md
+name: Daily social post
+
+on:
+  schedule:
+    - cron: '30 4 * * *' # 10:00 IST (GitHub may start it a few minutes late)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Plan and write only, do not post'
+        type: boolean
+        default: true
+      kind:
+        description: 'Kind of post (blank = today''s turn)'
+        type: choice
+        options: ['', 'domestic package', 'international package', 'flight offer', 'travel news']
+        default: ''
+      brief:
+        description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'
+        required: false
+
+concurrency:
+  group: social-post
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: marketing
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: marketing/package-lock.json
+      - run: npm ci
+      # The list of past posts lives in the Actions cache, so the agent avoids repeats.
+      - uses: actions/cache/restore@v4
+        with:
+          path: marketing/.state
+          key: social-history-${{ github.run_id }}
+          restore-keys: social-history-
+      - name: Plan, write and publish today's post
+        run: node agent.js ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          KIND: ${{ inputs.kind }}
+          BRIEF: ${{ inputs.brief }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      - uses: actions/cache/save@v4
+        if: always() && hashFiles('marketing/.state/history.json') != ''
+        with:
+          path: marketing/.state
+          key: social-history-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: post
+          path: |
+            marketing/out/post.*
+            marketing/out/short.mp4
+          if-no-files-found: ignore
+          retention-days: 30
