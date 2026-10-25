@@ -103,7 +103,7 @@ Write each platform's text separately so they do not read as copies.
 
 Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the destination slowly zooming, with your card text over it. The same design is the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
 
-photo_query is a stock-photo search of 2-5 words for a beautiful, recognisable photo of the place the post is about, e.g. "Tashkent mosque", "Munnar tea plantation", "Bangkok temple". For news without one place, describe a fitting travel scene, e.g. "airport departure board" or "Eiffel Tower Paris". Never ask for people's faces, flags or logos.`;
+photo_queries are 2-3 stock-photo searches of 2-5 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch Gujarat", "Bhuj Gujarat"] or ["Tashkent mosque", "Tashkent Uzbekistan", "Uzbekistan"]. Stock libraries know famous names better than local ones, so include the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.`;
 
 const Post = z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the post is confirmed in it'),
@@ -114,7 +114,7 @@ const Post = z.object({
     headline: z.string(),
     subline: z.string(),
   }),
-  photo_query: z.string(),
+  photo_queries: z.array(z.string()),
   facebook: z.string(),
   instagram: z.string(),
   x: z.string(),
@@ -213,37 +213,70 @@ const THEMES = [
 
 // ---- Photo ----
 
-// A free, licensed photo of the post's destination from Pixabay (PIXABAY_API_KEY) or Pexels
-// (PEXELS_API_KEY). Skips photos used in earlier posts. Without a key or a match, the post uses a
-// plain brand card. Each search returns candidates as { id, image, credit, url }.
+// A free, licensed photo of the post's subject from Pixabay (PIXABAY_API_KEY) or Pexels
+// (PEXELS_API_KEY). Stock searches often return look-alikes (Death Valley for the Rann of Kutch),
+// so Claude looks at the candidates and only accepts one that really shows the place. It tries the
+// writer's searches from most specific to most general, skips photos used before, and falls back to
+// the plain brand card if nothing fits. Searches return { id, image, preview, tags, credit, url }.
 async function searchPixabay(query, key) {
   const search = orientation => fetch(`https://pixabay.com/api/?${new URLSearchParams({ key, q: query, image_type: 'photo', orientation, safesearch: 'true', min_width: '1080', per_page: '20' })}`).then(r => r.json());
   let { hits = [] } = await search('vertical');
-  if (!hits.length) ({ hits = [] } = await search('all'));
-  return hits.map(h => ({ id: `pixabay-${h.id}`, image: h.largeImageURL, credit: `Photo: ${h.user} on Pixabay`, url: h.pageURL }));
+  if (hits.length < 4) ({ hits = [] } = await search('all'));
+  return hits.map(h => ({ id: `pixabay-${h.id}`, image: h.largeImageURL, preview: h.webformatURL, tags: h.tags, credit: `Photo: ${h.user} on Pixabay`, url: h.pageURL }));
 }
 
 async function searchPexels(query, key) {
   const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query, orientation: 'portrait', size: 'large', per_page: '15' })}`, { headers: { Authorization: key } });
   const { photos = [] } = await r.json();
-  return photos.map(p => ({ id: p.id, image: `${p.src.original}?auto=compress&cs=tinysrgb&w=2160`, credit: `Photo: ${p.photographer} on Pexels`, url: p.url }));
+  return photos.map(p => ({ id: p.id, image: `${p.src.original}?auto=compress&cs=tinysrgb&w=2160`, preview: p.src.medium, tags: p.alt, credit: `Photo: ${p.photographer} on Pexels`, url: p.url }));
 }
 
-async function findPhoto(query, history) {
-  const pixabay = env('PIXABAY_API_KEY'), pexels = env('PEXELS_API_KEY');
-  if (!query || !(pixabay || pexels)) return null;
-  try {
-    const found = pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels);
-    const used = new Set(history.map(h => h.photo).filter(Boolean));
-    const p = found.find(x => !used.has(x.id)) || found[0];
-    if (!p) { console.log(`No photo found for "${query}", using a plain card`); return null; }
-    const img = await fetch(p.image);
-    if (!img.ok) throw new Error(`HTTP ${img.status}`);
-    return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url };
-  } catch (err) {
-    console.log(`Photo search failed (${err.message}), using a plain card`);
-    return null;
+const PhotoChoice = z.object({ photo: z.number().int().describe('The number of the chosen photo, or 0 if none of them fits') });
+
+async function choosePhoto(client, post, candidates) {
+  const shown = [], content = [];
+  for (const c of candidates) {
+    const r = await fetch(c.preview).catch(() => null);
+    if (!r?.ok) continue;
+    const jpg = await sharp(Buffer.from(await r.arrayBuffer())).resize(512, 512, { fit: 'inside' }).jpeg({ quality: 80 }).toBuffer();
+    shown.push(c);
+    content.push({ type: 'text', text: `Photo ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpg.toString('base64') } });
   }
+  if (!shown.length) return null;
+  content.push({ type: 'text', text: `These are candidate background photos for a social media post by an Indian travel agency.
+Post: ${post.topic}
+Headline on the image: ${post.card.headline}
+
+Pick the photo that best suits the post. If the post is about a particular place, the photo must clearly show that place (or, failing that, an unmistakable part of the same region): someone who knows it should recognise it. A similar-looking place elsewhere is not acceptable, and neither is a photo whose tags name a different place. For general topics, any photo that fits the subject is fine. Prefer clear, attractive scenes without close-up faces, text, logos or flags. Answer 0 if none is right; we then use a plain design, which is far better than a misleading photo.` });
+  const res = await client.beta.messages.parse({
+    model: MODEL,
+    max_tokens: 4000,
+    betas: ['server-side-fallback-2026-07-01'],
+    fallbacks: 'default',
+    output_config: { effort: 'low', format: betaZodOutputFormat(PhotoChoice) },
+    messages: [{ role: 'user', content }],
+  });
+  const n = res.parsed_output?.photo;
+  return n >= 1 && n <= shown.length ? shown[n - 1] : null;
+}
+
+async function findPhoto(client, post, history) {
+  const pixabay = env('PIXABAY_API_KEY'), pexels = env('PEXELS_API_KEY');
+  if (!(pixabay || pexels)) return null;
+  const used = new Set(history.map(h => h.photo).filter(Boolean));
+  for (const query of post.photo_queries.slice(0, 3)) {
+    try {
+      const found = (pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels)).filter(x => !used.has(x.id)).slice(0, 8);
+      const p = found.length ? await choosePhoto(client, post, found) : null;
+      if (!p) { console.log(`Photo search "${query}": nothing that shows the subject`); continue; }
+      const img = await fetch(p.image);
+      if (!img.ok) throw new Error(`HTTP ${img.status}`);
+      return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url, query };
+    } catch (err) {
+      console.log(`Photo search "${query}" failed: ${err.message}`);
+    }
+  }
+  return null;
 }
 
 // ---- Image and video ----
@@ -479,8 +512,8 @@ const held = !(confirmed(brief) && post.ready);
 console.log(`Today: ${post.kind} · ${post.topic}${DRY_RUN ? ' · DRY RUN' : ''}${held ? ' · HELD, facts not confirmed' : ''}\n\n--- Research brief ---\n${brief}`);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-const photo = await findPhoto(post.photo_query, history);
-console.log(`Photo: ${photo ? `${photo.url} (search "${post.photo_query}")` : 'none, plain card'}`);
+const photo = await findPhoto(client, post, history);
+console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain card'}`);
 const image = await renderImage(post, photo);
 fs.writeFileSync(path.join(OUT_DIR, 'post.jpg'), image);
 const video = await renderVideo(post, photo, now);
