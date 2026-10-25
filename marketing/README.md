@@ -95,6 +95,8 @@ download the **post** artifact to see the image. Untick it to post now.
 - **Kind** picks the type of post instead of today's turn.
 - **Brief** steers it, for example "Kashmir for Christmas" or "Any new flights from Hyderabad?".
   The agent still only posts facts it can confirm.
+- **Platforms** posts to only some platforms, for example `facebook,instagram` after those failed.
+  It researches and writes a new post, so it won't be identical to the one the others got.
 
 Locally: `cd marketing && npm install`, set the same variables, then `npm run dry-run`. The image,
 the Short (`short.mp4`) and the full post are saved in `marketing/out/`. `KIND="flight offer"` and `BRIEF="..."` work the same way.

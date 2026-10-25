@@ -19,6 +19,9 @@ on:
       brief:
         description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'
         required: false
+      platforms:
+        description: 'Only post to these (e.g. facebook,instagram); blank = all'
+        required: false
 
 concurrency:
   group: social-post
@@ -53,6 +56,7 @@ jobs:
         env:
           KIND: ${{ inputs.kind }}
           BRIEF: ${{ inputs.brief }}
+          PLATFORMS: ${{ inputs.platforms }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}

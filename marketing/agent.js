@@ -253,7 +253,10 @@ async function renderShort(post) {
 
 async function graph(pathname, params) {
   const body = new FormData();
-  for (const [k, v] of Object.entries(params)) body.append(k, v instanceof Buffer ? new Blob([v], { type: 'image/jpeg' }) : v, v instanceof Buffer ? 'post.jpg' : undefined);
+  for (const [k, v] of Object.entries(params)) {
+    if (v instanceof Buffer) body.append(k, new Blob([v], { type: 'image/jpeg' }), 'post.jpg');
+    else body.append(k, v);
+  }
   const r = await fetch(`${GRAPH}/${pathname}`, { method: 'POST', body });
   const j = await r.json();
   if (!r.ok || j.error) throw new Error(j.error?.message || `HTTP ${r.status}`);
@@ -382,11 +385,15 @@ const platforms = [
   { name: 'YouTube', keys: ['YT_CLIENT_ID', 'YT_CLIENT_SECRET', 'YT_REFRESH_TOKEN'], text: `${out.youtube.title}\n\n${out.youtube.description}`, run: () => postYouTube(out.youtube, short) },
 ];
 
+// PLATFORMS="facebook,instagram" posts to those only (for re-running after one platform failed).
+const only = env('PLATFORMS', '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+
 const report = [];
 let failed = 0, posted = 0;
 for (const p of platforms) {
   let status;
   if (held) status = 'held, not posted: the research could not confirm the facts';
+  else if (only.length && !only.includes(p.name.toLowerCase())) status = 'skipped, not selected for this run';
   else if (DRY_RUN) status = 'dry run, not posted';
   else if (p.keys.some(k => !env(k))) status = `skipped, missing ${p.keys.filter(k => !env(k)).join(', ')}`;
   else {
