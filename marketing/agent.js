@@ -103,7 +103,7 @@ Write each platform's text separately so they do not read as copies.
 
 Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the destination slowly zooming, with your card text over it. The same design is the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
 
-photo_queries are 2-3 stock-photo searches of 2-5 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch Gujarat", "Bhuj Gujarat"] or ["Tashkent mosque", "Tashkent Uzbekistan", "Uzbekistan"]. Stock libraries know famous names better than local ones, so include the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.`;
+photo_queries are 3 stock-photo searches of 1-3 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.`;
 
 const Post = z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the post is confirmed in it'),
@@ -218,10 +218,18 @@ const THEMES = [
 // so Claude looks at the candidates and only accepts one that really shows the place. It tries the
 // writer's searches from most specific to most general, skips photos used before, and falls back to
 // the plain brand card if nothing fits. Searches return { id, image, preview, tags, credit, url }.
+// Pixabay only returns photos tagged with every word of the search, so a search that finds nothing
+// is retried with its first words dropped ("Ha Long Bay Vietnam" -> ... -> "Vietnam").
 async function searchPixabay(query, key) {
-  const search = orientation => fetch(`https://pixabay.com/api/?${new URLSearchParams({ key, q: query, image_type: 'photo', orientation, safesearch: 'true', min_width: '1080', per_page: '20' })}`).then(r => r.json());
-  let { hits = [] } = await search('vertical');
-  if (hits.length < 4) ({ hits = [] } = await search('all'));
+  const search = (q, orientation) => fetch(`https://pixabay.com/api/?${new URLSearchParams({ key, q, image_type: 'photo', orientation, safesearch: 'true', min_width: '1080', per_page: '20' })}`).then(r => r.json());
+  const words = query.split(/\s+/).filter(Boolean);
+  let hits = [];
+  for (let i = 0; i < words.length && !hits.length; i++) {
+    const q = words.slice(i).join(' ');
+    ({ hits = [] } = await search(q, 'vertical'));
+    if (hits.length < 4) ({ hits = [] } = await search(q, 'all'));
+    if (i && hits.length) console.log(`  "${query}" found nothing; using "${q}"`);
+  }
   return hits.map(h => ({ id: `pixabay-${h.id}`, image: h.largeImageURL, preview: h.webformatURL, tags: h.tags, credit: `Photo: ${h.user} on Pixabay`, url: h.pageURL }));
 }
 
@@ -231,13 +239,16 @@ async function searchPexels(query, key) {
   return photos.map(p => ({ id: p.id, image: `${p.src.original}?auto=compress&cs=tinysrgb&w=2160`, preview: p.src.medium, tags: p.alt, credit: `Photo: ${p.photographer} on Pexels`, url: p.url }));
 }
 
-const PhotoChoice = z.object({ photo: z.number().int().describe('The number of the chosen photo, or 0 if none of them fits') });
+const PhotoChoice = z.object({
+  reason: z.string().describe('One sentence on why this photo, or why none fits'),
+  photo: z.number().int().describe('The number of the chosen photo, or 0 if none of them fits'),
+});
 
 async function choosePhoto(client, post, candidates) {
   const shown = [], content = [];
   for (const c of candidates) {
-    const r = await fetch(c.preview).catch(() => null);
-    if (!r?.ok) continue;
+    const r = await fetch(c.preview).catch(err => ({ ok: false, status: err.message }));
+    if (!r.ok) { console.log(`  preview ${c.preview} failed: ${r.status}`); continue; }
     const jpg = await sharp(Buffer.from(await r.arrayBuffer())).resize(512, 512, { fit: 'inside' }).jpeg({ quality: 80 }).toBuffer();
     shown.push(c);
     content.push({ type: 'text', text: `Photo ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpg.toString('base64') } });
@@ -257,6 +268,7 @@ Pick the photo that best suits the post. If the post is about a particular place
     messages: [{ role: 'user', content }],
   });
   const n = res.parsed_output?.photo;
+  console.log(`  ${shown.length} photos checked, Claude chose ${n || 'none'}: ${res.parsed_output?.reason || res.stop_reason}`);
   return n >= 1 && n <= shown.length ? shown[n - 1] : null;
 }
 
@@ -267,6 +279,7 @@ async function findPhoto(client, post, history) {
   for (const query of post.photo_queries.slice(0, 3)) {
     try {
       const found = (pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels)).filter(x => !used.has(x.id)).slice(0, 8);
+      console.log(`Photo search "${query}": ${found.length} results`);
       const p = found.length ? await choosePhoto(client, post, found) : null;
       if (!p) { console.log(`Photo search "${query}": nothing that shows the subject`); continue; }
       const img = await fetch(p.image);
