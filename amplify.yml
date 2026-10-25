@@ -1,0 +1,18 @@
+# AWS Amplify build for hydholidays.com.
+# Publishes only the website files (pages, app.js, style.css, logo, images) from a "site" folder,
+# so marketing/, api/ (the Vercel enquiry function), READMEs and package files are not on the site.
+# New website files at the top level (.html, .css, .js, images) are picked up automatically;
+# anything else must be added to the copy commands below.
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - mkdir -p site
+        - cp *.html *.css *.js *.png site/
+        - cp -r images site/
+        - rm -f site/images/README.txt
+  artifacts:
+    baseDirectory: site
+    files:
+      - '**/*'
