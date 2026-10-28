@@ -76,6 +76,14 @@ Seen in the research or the current search terms, and they waste money:
 
 ## 3. Campaigns
 
+> **Update 26 Oct 2026:** Google disapproved the visa ads (Visa agent, Singapore, Malaysia, UK) under its
+> *Government documents and services* policy: since 5 Oct 2026, visa ads need a Google certificate, which only
+> government-authorised providers can get. The Visa services campaign (3) is dropped from the upload file; its
+> budget moved to packages (Domestic ₹450/day, International ₹400/day). "Visa Help Included" and other visa wording
+> was removed from the package and travel-agent ads. Visa enquiries now come via the travel-agent campaign, the
+> Google Business Profile and the website's visa pages.
+
+
 All are **Search campaigns** (not Smart, not Performance Max): Google search results only, Display
 Network and Search Partners off, keywords in phrase and exact match, ads shown 8 am – 10 pm (when
 someone can answer calls and WhatsApp), English.

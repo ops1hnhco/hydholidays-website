@@ -1,0 +1,57 @@
+# Researches and writes one travel/visa news article a day for www.hydholidays.com/blog.html,
+# commits it to main (which publishes the site), and leaves a WhatsApp Channel update to post by hand
+# in the run's Summary. Setup: marketing/README.md ("Daily blog").
+name: Daily blog
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # 08:00 IST (GitHub may start it a few minutes late)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Research and write only, do not publish'
+        type: boolean
+        default: true
+      brief:
+        description: 'Optional brief, e.g. "New Schengen visa fees"'
+        required: false
+      offer:
+        description: 'Approved offer as JSON (set by marketing/whatsapp.js); replaces research'
+        required: false
+
+concurrency:
+  group: daily-blog
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  blog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: marketing/package-lock.json
+      - run: npm ci
+        working-directory: marketing
+      - name: Research and write today's article
+        working-directory: marketing
+        run: node blog.js ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          BRIEF: ${{ inputs.brief }}
+          OFFER: ${{ inputs.offer }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          WHATSAPP_CHANNEL_URL: ${{ vars.WHATSAPP_CHANNEL_URL }}
+      - name: Publish
+        run: |
+          git add blog blog.html sitemap.xml
+          if git diff --cached --quiet; then echo "Nothing new to publish"; exit 0; fi
+          git config user.name "Hyderabad Holidays Co. blog"
+          git config user.email "contact@hydholidays.com"
+          git commit -m "Blog: $(jq -r '.[0].title' blog/posts.json)"
+          git push

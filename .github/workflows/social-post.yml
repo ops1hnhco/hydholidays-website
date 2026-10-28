@@ -19,6 +19,9 @@ on:
       brief:
         description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'
         required: false
+      offer:
+        description: 'Approved offer as JSON (set by marketing/whatsapp.js); replaces research'
+        required: false
       platforms:
         description: 'Only post to these (e.g. facebook,instagram); blank = all'
         required: false
@@ -56,6 +59,7 @@ jobs:
         env:
           KIND: ${{ inputs.kind }}
           BRIEF: ${{ inputs.brief }}
+          OFFER: ${{ inputs.offer }}
           PLATFORMS: ${{ inputs.platforms }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}

@@ -140,3 +140,78 @@ some followers and engagement. What helps most:
   with the WhatsApp number and website.
 - Check **Business Suite → Insights** once a week to see which kinds of post do best, and use the
   **Kind** and **Brief** options to post more of those.
+
+# Daily blog
+
+Every morning at 08:00 IST, `.github/workflows/daily-blog.yml` runs `blog.js`. Claude picks one recent
+news item that matters to travellers from Hyderabad (visa and entry rules, new flights and routes,
+airports, advisories), confirms it on official sources or established news sites, and writes a
+350–600 word article with sources and a link to the most relevant page on our site. The article is
+saved as `blog/<date>-<slug>.html`, listed on `blog.html`, added to the sitemap and committed to
+`main`, which publishes it. If the facts can't be confirmed, nothing is published and the run fails
+so you notice.
+
+**WhatsApp Channel.** WhatsApp has no API for posting to Channels, so each run's **Summary** (GitHub →
+Actions → Daily blog → run) contains a ready-made Channel update with the article link. Copy it into
+the Channel from the WhatsApp Business app. Once the Channel exists, add its link as a repository
+**variable** (not a secret) named `WHATSAPP_CHANNEL_URL`; the blog's "Follow" buttons then point to it.
+Until then they open a WhatsApp chat with us.
+
+Setup: the same `ANTHROPIC_API_KEY` secret as the social agent. To try it without publishing, run
+**Actions → Daily blog → Run workflow** with "dry run" ticked. `node blog.js --index` rebuilds
+`blog.html` and the sitemap after you delete or edit a post (and its entry in `blog/posts.json`).
+
+# WhatsApp offers agent
+
+`whatsapp.js` turns supplier offers shared in WhatsApp groups into blog posts and social posts,
+after you approve each one on WhatsApp.
+
+1. It stays logged in to WhatsApp Web as a **spare number** that is a member of your supplier
+   groups, and saves the messages (text and posters) from the groups you list.
+2. At 11:00 and 17:00 IST Claude reads the new messages, including the text on posters, and picks out
+   complete offers. Repeats across groups are merged. It leaves out supplier names, phone numbers
+   and links.
+3. Each offer is sent to you on WhatsApp with **our price**: the supplier's price + 10%, rounded up
+   to the next ₹100. Anything doubtful (other currencies, missing details) is marked ⚠️.
+4. You reply:
+
+   | Reply | What happens |
+   |---|---|
+   | `yes 12` | Publishes offer 12 at the price shown |
+   | `yes 12 24999` | Publishes at ₹24,999 instead |
+   | `yes 12 no price` | Publishes without a price ("ask for a quote") |
+   | `no 12` | Skips it |
+   | `list` | Shows offers waiting for a reply |
+   | `check` | Reads the groups now instead of waiting for 11:00/17:00 |
+
+5. On `yes`, it starts **Daily blog** and **Daily social post** on GitHub with the offer. They skip
+   their web research and write an "Offers" blog article and the Facebook, Instagram, X and YouTube
+   posts from the approved details only. Results are in GitHub → Actions as usual.
+
+**Risk.** WhatsApp has no official way to read groups, so this uses Baileys, an unofficial WhatsApp
+Web library. WhatsApp's terms do not allow it and it can ban the number. Use a spare SIM only, never
++91 70750 40406, and ask suppliers to add that number to their groups. Messages and posters stay on
+the computer running the agent (`marketing/.state/whatsapp`, not committed) and are deleted once
+read.
+
+## Setup
+
+1. **A computer that is always on.** The agent only reads messages while it runs. This PC works if it
+   stays on; otherwise use a small always-on machine or server with Node 22+.
+2. **GitHub token**: github.com → Settings → Developer settings → Fine-grained tokens → Generate:
+   repository *hydholidays-website* only, permission **Actions: Read and write**. Copy it.
+3. In `marketing/`, copy `.env.example` to `.env` and fill it in (Anthropic key, your number,
+   GitHub token). Leave `PUBLISH_DRY_RUN=1` for now.
+4. `npm install`, then `npm run whatsapp -- --groups`. Scan the QR code with the **spare phone**
+   (WhatsApp → Settings → Linked devices → Link a device). It lists the groups and exits. Copy the
+   supplier group names into `WA_GROUPS` in `.env`, separated by commas.
+5. `npm run whatsapp` and leave it running. Send `check` from your number to the spare number to try
+   it. With `PUBLISH_DRY_RUN=1`, `yes` runs the workflows as dry runs; check their Summary on GitHub.
+   When the posts look right, set `PUBLISH_DRY_RUN=0` and restart.
+6. To start it automatically on Windows: Task Scheduler → Create Task → trigger **At log on** →
+   action *Start a program* `cmd.exe`, arguments `/c npm run whatsapp >> whatsapp.log 2>&1`, start in
+   `C:\Projects\hyderabad-holidays-site\marketing`. On a Linux server, use pm2 or systemd.
+
+If WhatsApp logs the device out, delete `marketing/.state/whatsapp/auth` and run it again to scan a
+new QR code. If your replies are ignored, the log shows "Ignored a direct message from …": make sure
+`WA_OWNER` is the number you reply from, with country code.

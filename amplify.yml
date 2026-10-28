@@ -9,8 +9,9 @@ frontend:
     build:
       commands:
         - mkdir -p site
-        - cp *.html *.css *.js *.png site/
+        - cp *.html *.css *.js *.png robots.txt sitemap.xml site/
         - cp -r images site/
+        - if [ -d blog ]; then cp -r blog site/; fi
         - rm -f site/images/README.txt
   artifacts:
     baseDirectory: site

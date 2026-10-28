@@ -31,7 +31,7 @@ const pkg = (place, nights, highlights, extra = []) => ({
 
 const CAMPAIGNS = [
   {
-    name: 'Search | Domestic packages', budget: 300,
+    name: 'Search | Domestic packages', budget: 450,
     groups: [
       { name: 'Kerala', cpc: 35, url: '/packages.html', path: ['packages', 'kerala'],
         keywords: kw(['kerala tour package', 'kerala tour package from hyderabad', 'munnar alleppey package', 'kerala honeymoon package']),
@@ -58,11 +58,11 @@ const CAMPAIGNS = [
     ],
   },
   {
-    name: 'Search | International packages', budget: 250,
+    name: 'Search | International packages', budget: 400,
     groups: [
       { name: 'Dubai', cpc: 40, url: '/packages.html', path: ['packages', 'dubai'],
         keywords: kw(['dubai tour package', 'dubai tour package from hyderabad', 'dubai package from hyderabad']),
-        ...pkg('Dubai', '5N/6D', ['Desert Safari & Burj Khalifa', 'Visa Help Included', 'Abu Dhabi Day Trip']) },
+        ...pkg('Dubai', '5N/6D', ['Desert Safari & Burj Khalifa', 'Hotels & Transfers Arranged', 'Abu Dhabi Day Trip']) },
       { name: 'Thailand', cpc: 40, url: '/packages.html', path: ['packages', 'thailand'],
         keywords: kw(['thailand tour package', 'thailand tour package from hyderabad', 'bangkok pattaya package']),
         ...pkg('Thailand', '5N/6D', ['Bangkok, Pattaya & Coral Isle', 'Safari World & City Tour']) },
@@ -74,51 +74,25 @@ const CAMPAIGNS = [
         ...pkg('Bali', '6N/7D', ['Ubud & Nusa Penida', 'Uluwatu Sunset']) },
       { name: 'General international', cpc: 30, url: '/packages.html', path: ['packages'],
         keywords: kw(['international tour packages from hyderabad', 'foreign tour packages from hyderabad']),
-        headlines: ['International Tour Packages', 'Foreign Trips from Hyderabad', 'Dubai, Thailand, Bali, Vietnam', 'Visa Help Included',
+        headlines: ['International Tour Packages', 'Foreign Trips from Hyderabad', 'Dubai, Thailand, Bali, Vietnam', 'Hotels & Transfers Arranged',
           'Customised to Your Dates', 'Family & Honeymoon Trips', 'Add Flights from Hyderabad', ...BRAND],
         descriptions: ['International holidays from Hyderabad: Dubai, Thailand, Bali, Vietnam and more.',
-          'We handle visas, hotels and transfers. Add flights from Hyderabad. Ask for a quote today.',
+          'We arrange hotels, transfers and sightseeing. Add flights from Hyderabad. Get a quote.',
           'Based in KPHB, Kukatpally. Talk to a real person on call or WhatsApp, 7 days a week.'] },
     ],
   },
-  {
-    name: 'Search | Visa services', budget: 300,
-    groups: [
-      { name: 'Visa agent', cpc: 50, url: '/visa.html', path: ['visa'],
-        keywords: kw(['visa agent in hyderabad', 'visa consultants in hyderabad', 'visa agents near me', 'tourist visa agent', 'visa services in hyderabad']),
-        headlines: ['Visa Agent in Hyderabad', 'Tourist Visa Help', 'Dubai, Schengen, UK & More', 'Document Checklist & Forms',
-          'Appointment Guidance', 'Tourist & Business Visas', ...BRAND],
-        descriptions: ['Tourist visa help in Hyderabad: Dubai, Schengen, UK, Singapore, Canada and more.',
-          'We prepare your forms and documents and guide you to the appointment. Call or WhatsApp.',
-          'Based in KPHB, Kukatpally. Ask for the checklist and our service fee.'] },
-      ...[
-        ['UAE', 'Dubai', '/visa-uae.html', 40, ['dubai visa', 'dubai visa for indians', 'dubai tourist visa', 'uae tourist visa']],
-        ['Schengen', 'Schengen', '/visa-schengen.html', 60, ['schengen visa', 'schengen visa from india', 'europe tourist visa', 'schengen visa agent']],
-        ['UK', 'UK', '/visa-uk.html', 90, ['uk visa', 'uk visitor visa', 'uk tourist visa', 'uk visa consultants in hyderabad']],
-        ['Singapore', 'Singapore', '/visa-singapore.html', 40, ['singapore visa', 'singapore visa agent in hyderabad', 'singapore tourist visa']],
-        ['Malaysia', 'Malaysia', '/visa-malaysia.html', 40, ['malaysia visa', 'malaysia tourist visa', 'malaysia visa for indians']],
-        ['Canada', 'Canada', '/visa-canada.html', 60, ['canada visitor visa', 'canada tourist visa', 'canada visa agent in hyderabad']],
-        ['Australia', 'Australia', '/visa-australia.html', 60, ['australia visitor visa', 'australia tourist visa', 'australia visa agent in hyderabad']],
-      ].map(([group, place, url, cpc, words]) => ({
-        name: group, cpc, url, path: ['visa', place.toLowerCase()], keywords: kw(words),
-        headlines: [`${place} Visa Help`, `${place} Visa from Hyderabad`, 'Document Checklist & Forms', 'Appointment Guidance',
-          'Experienced Visa Consultant', 'Tourist & Business Visas', ...BRAND],
-        descriptions: [`We prepare your ${place} visa file: forms, documents and appointment guidance.`,
-          'Visa help in Hyderabad. Call or WhatsApp for the checklist and our service fee.',
-          'Based in KPHB, Kukatpally. Talk to a real person, 7 days a week.'],
-      })),
-    ],
-  },
+  // Visa services campaign removed (26 Oct 2026): Google disapproved the visa ads under its
+  // Government documents and services policy (certificate required since 5 Oct 2026).
   {
     name: 'Search | Travel agent Hyderabad', budget: 150,
     groups: [
       { name: 'Travel agent', cpc: 30, url: '/', path: ['travel-agent'],
         keywords: kw(['travel agents in hyderabad', 'tours and travels in hyderabad', 'travel agency near me', 'travel agents near me',
           'travel agents in kukatpally', 'travel agency in kphb', 'travel agents in miyapur']),
-        headlines: ['Travel Agent in KPHB', 'Tours & Travels Hyderabad', 'Holidays, Flights, Hotels', 'Visa Help Included',
+        headlines: ['Travel Agent in KPHB', 'Tours & Travels Hyderabad', 'Holidays, Flights, Hotels', 'Domestic & International',
           'Customised Holiday Packages', 'Family & Honeymoon Trips', 'Visit Us in Kukatpally', 'Hyderabad Holidays Co.',
           'Get a Quote on WhatsApp', 'Talk to a Real Person'],
-        descriptions: ['Your local travel agent in KPHB, Kukatpally: holidays, flights, hotels and visas.',
+        descriptions: ['Your local travel agent in KPHB, Kukatpally: holiday packages, flights and hotels.',
           'Domestic and international packages, customised to your dates. Ask for a quote today.',
           'Talk to a real person on call or WhatsApp, 7 days a week.'] },
     ],

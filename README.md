@@ -32,3 +32,8 @@ to GitHub; only the enquiry function runs on Vercel (https://hydholidays-website
 ## Social media agent
 A daily GitHub Actions job researches, writes, designs and posts travel content (package ideas, flight offers, travel news) to Facebook, Instagram, X and YouTube Shorts.
 Setup: `marketing/README.md`.
+
+## Package pages
+Each holiday package has its own page (`kashmir-tour-package.html`, `dubai-tour-package.html`, …) generated
+from the package list in `app.js` plus the copy in `scripts/build-package-pages.js`. After changing a price,
+itinerary or adding a package, run `node scripts/build-package-pages.js`; it rebuilds those pages and `sitemap.xml`.

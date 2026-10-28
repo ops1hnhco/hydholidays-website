@@ -5,7 +5,8 @@
 // branded card over a Pixabay (or Pexels) photo of the destination. The agent renders a still image
 // and a 15-second video, and posts Reels to Facebook and Instagram, a Short to YouTube, and the image to X.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
-// (see marketing/README.md). A platform without credentials is skipped.
+// (see marketing/README.md). A platform without credentials is skipped. With OFFER set (an offer
+// approved on WhatsApp, see whatsapp.js), it posts that offer instead of researching a topic.
 //
 //   node agent.js --dry-run                            research and write, post nothing
 //   BRIEF="Winter trips from Hyderabad" node agent.js  steer today's post
@@ -20,6 +21,7 @@ import ffmpegPath from 'ffmpeg-static';
 import sharp from 'sharp';
 import { TwitterApi } from 'twitter-api-v2';
 import { z } from 'zod';
+import { OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -86,7 +88,7 @@ const WRITE_SYSTEM = `You write social media posts for Hyderabad Holidays Co. ${
 You get a researched brief. Write today's post from it. If the brief is not marked READY, or it calls any fact you need unconfirmed, set ready to false; that post will not be published. Posts go live without review, so use only the facts in the brief, and never add prices, offers or claims of your own. If the brief mentions rules that change, say readers should check the latest before travelling. For visa topics, never imply that approval is guaranteed.
 
 By kind:
-- Domestic or international package: present it as a trip we can plan and customise from Hyderabad, and invite readers to ask for a quote. No prices.
+- Domestic or international package: present it as a trip we can plan and customise from Hyderabad, and invite readers to ask for a quote. No prices, except in our own offers (below).
 - Flight offer: make clear it is the airline's offer (name the airline), quote fares exactly as the brief gives them with "subject to availability", give the booking window, and say we can book it for them.
 - Travel news: explain plainly what changed and what travellers should do, then offer our help.
 
@@ -103,7 +105,9 @@ Write each platform's text separately so they do not read as copies.
 
 Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the destination slowly zooming, with your card text over it. The same design is the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
 
-photo_queries are 3 stock-photo searches of 1-3 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.`;
+photo_queries are 3 stock-photo searches of 1-3 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.
+
+Our own offers: ${OFFER_GUIDE} Put the price, if any, in the card's subline. sources is empty.`;
 
 const Post = z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the post is confirmed in it'),
@@ -514,8 +518,14 @@ const client = new Anthropic();
 // Nothing unconfirmed goes live: both the researcher and the writer must say the facts are confirmed.
 // One retry with fresh research, then the day's post is held and the run fails so GitHub emails you.
 const confirmed = b => (b.match(/STATUS\W*(NOT READY|READY)/i)?.[1] || '').toUpperCase() === 'READY';
+// An approved offer is already confirmed by the owner, so it is written once without research.
+const offer = readOffer(env('OFFER'));
 let brief, post;
-for (let attempt = 1; attempt <= 2; attempt++) {
+if (offer) {
+  brief = offerBrief(offer);
+  post = await write(client, brief);
+}
+for (let attempt = 1; !offer && attempt <= 2; attempt++) {
   brief = await research(client, now, history);
   post = await write(client, brief);
   if (confirmed(brief) && post.ready) break;

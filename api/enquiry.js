@@ -59,8 +59,9 @@ module.exports = async (req, res) => {
   hits.set(ip, [...recent, now]);
 
   const name = oneLine(body.name), phone = oneLine(body.phone), email = oneLine(body.email);
-  if (!name || phone.replace(/\D/g, '').length < 10 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({ ok: false, error: 'Name, a 10-digit phone number and a valid email are required' });
+  // Email is optional (most visitors reply on WhatsApp); if given it must be valid.
+  if (!name || phone.replace(/\D/g, '').length < 10 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    return res.status(400).json({ ok: false, error: 'Name and a 10-digit phone number are required; email must be valid if given' });
   }
 
   const rows = Object.keys(FIELD_LABELS)
@@ -77,7 +78,7 @@ module.exports = async (req, res) => {
     const info = await transport().sendMail({
       from: { name: env('MAIL_FROM_NAME', 'Hyderabad Holidays Co. Website'), address: env('MAIL_FROM', 'contact@hydholidays.com') },
       to: env('MAIL_TO', 'contact@hydholidays.com'),
-      replyTo: { name, address: email },
+      ...(email ? { replyTo: { name, address: email } } : {}),
       subject, text, html,
     });
     if (env('MAIL_DRY_RUN') === '1') console.log(info.message.toString());

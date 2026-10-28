@@ -4,25 +4,37 @@
   if(m&&n) m.addEventListener('click',()=>{const o=n.classList.toggle('open');m.setAttribute('aria-expanded',o)});
 
   const P=[
-   {r:"in",n:"Kashmir",c:"SXR",d:"6N/7D",p:"28,900",t:["Gulmarg","Pahalgam","Shikara"],g:"linear-gradient(160deg,#5b8db8,#203a55)",i:["Arrive Srinagar, Dal Lake shikara ride","Gulmarg day trip, Gondola (optional)","Transfer to Pahalgam via saffron fields","Aru & Betaab valleys","Sonamarg day excursion","Srinagar Mughal gardens","Departure from Srinagar"]},
-   {r:"intl",n:"Dubai",c:"DXB",d:"5N/6D",p:"54,500",t:["Visa","Desert safari","Burj Khalifa"],g:"linear-gradient(160deg,#d9a35b,#7a4a1f)",i:["Arrive Dubai, Marina dhow dinner","City tour and Burj Khalifa 124th floor","Desert safari with BBQ dinner","Abu Dhabi day trip","Free day for shopping","Departure"]},
-   {r:"in",n:"Kerala",c:"COK",d:"5N/6D",p:"21,400",t:["Munnar","Alleppey houseboat"],g:"linear-gradient(160deg,#4f9a6b,#1d4a35)",i:["Arrive Kochi, transfer to Munnar","Tea gardens and Eravikulam","Transfer to Thekkady, spice plantation","Alleppey houseboat overnight","Kochi Fort and Marine Drive","Departure from Kochi"]},
+   {r:"in",n:"Kashmir",c:"SXR",d:"6N/7D",p:"16,900",t:["Gulmarg","Pahalgam","Shikara"],g:"linear-gradient(160deg,#5b8db8,#203a55)",i:["Arrive Srinagar, Dal Lake shikara ride","Gulmarg day trip, Gondola (optional)","Transfer to Pahalgam via saffron fields","Aru & Betaab valleys","Sonamarg day excursion","Srinagar Mughal gardens","Departure from Srinagar"]},
+   {r:"intl",n:"Dubai",c:"DXB",d:"5N/6D",p:"34,500",t:["Visa","Desert safari","Burj Khalifa"],g:"linear-gradient(160deg,#d9a35b,#7a4a1f)",i:["Arrive Dubai, Marina dhow dinner","City tour and Burj Khalifa 124th floor","Desert safari with BBQ dinner","Abu Dhabi day trip","Free day for shopping","Departure"]},
+   {r:"in",n:"Kerala",c:"COK",d:"5N/6D",p:"15,400",t:["Munnar","Alleppey houseboat"],g:"linear-gradient(160deg,#4f9a6b,#1d4a35)",i:["Arrive Kochi, transfer to Munnar","Tea gardens and Eravikulam","Transfer to Thekkady, spice plantation","Alleppey houseboat overnight","Kochi Fort and Marine Drive","Departure from Kochi"]},
    {r:"intl",n:"Bali",c:"DPS",d:"6N/7D",p:"62,900",t:["Ubud","Nusa Penida","Flights"],g:"linear-gradient(160deg,#3ca39b,#14504d)",i:["Arrive Bali, transfer to Ubud","Ubud swing, rice terraces, monkey forest","Kintamani volcano view","Transfer to Kuta, Uluwatu sunset","Nusa Penida island tour","Free day at the beach","Departure"]},
    {r:"in",n:"Andaman",c:"IXZ",d:"5N/6D",p:"32,800",t:["Havelock","Neil Island","Ferries"],g:"linear-gradient(160deg,#2f8fc0,#0f3f5c)",i:["Arrive Port Blair, Cellular Jail light show","Ferry to Havelock, Radhanagar beach","Elephant beach snorkelling","Ferry to Neil Island","Return to Port Blair","Departure"]},
-   {r:"intl",n:"Vietnam",c:"SGN",d:"7N/8D",p:"68,500",t:["Hanoi","Ha Long Bay","e-Visa"],g:"linear-gradient(160deg,#b5534a,#4e1f1c)",i:["Arrive Hanoi, Old Quarter walk","Hanoi city tour","Ha Long Bay overnight cruise","Return to Hanoi, fly to Da Nang","Ba Na Hills and Golden Bridge","Hoi An ancient town","Fly to Ho Chi Minh City, Cu Chi tunnels","Departure"]},
-   {r:"in",n:"Goa",c:"GOI",d:"3N/4D",p:"14,900",t:["North & South Goa","Cruise dinner"],g:"linear-gradient(160deg,#e08a4c,#7a3a18)",i:["Arrive Goa, evening at Baga","North Goa forts and beaches","South Goa churches, Mandovi cruise","Departure"]},
-   {r:"intl",n:"Thailand",c:"BKK",d:"5N/6D",p:"39,900",t:["Pattaya","Bangkok","Coral Island"],g:"linear-gradient(160deg,#c3478a,#55173b)",i:["Arrive Bangkok, transfer to Pattaya","Coral Island speedboat tour","Alcazar show, transfer to Bangkok","Bangkok temple and city tour","Safari World and Marine Park","Departure"]},
-   {r:"in",n:"Himachal",c:"IXC",d:"6N/7D",p:"24,600",t:["Shimla","Manali","Solang"],g:"linear-gradient(160deg,#6f7fb3,#272f55)",i:["Arrive Chandigarh, drive to Shimla","Kufri and Mall Road","Drive to Manali via Kullu","Solang valley","Atal Tunnel and Sissu","Manali local sightseeing","Return to Chandigarh, depart"]}];
+   {r:"intl",n:"Vietnam",c:"SGN",d:"7N/8D",p:"38,500",t:["Hanoi","Ha Long Bay","e-Visa"],g:"linear-gradient(160deg,#b5534a,#4e1f1c)",i:["Arrive Hanoi, Old Quarter walk","Hanoi city tour","Ha Long Bay overnight cruise","Return to Hanoi, fly to Da Nang","Ba Na Hills and Golden Bridge","Hoi An ancient town","Fly to Ho Chi Minh City, Cu Chi tunnels","Departure"]},
+   {r:"in",n:"Goa",c:"GOI",d:"3N/4D",p:"13,900",t:["North & South Goa","Cruise dinner"],g:"linear-gradient(160deg,#e08a4c,#7a3a18)",i:["Arrive Goa, evening at Baga","North Goa forts and beaches","South Goa churches, Mandovi cruise","Departure"]},
+   {r:"intl",n:"Thailand",c:"BKK",d:"5N/6D",p:"15,900",t:["Pattaya","Bangkok","Coral Island"],g:"linear-gradient(160deg,#c3478a,#55173b)",i:["Arrive Bangkok, transfer to Pattaya","Coral Island speedboat tour","Alcazar show, transfer to Bangkok","Bangkok temple and city tour","Safari World and Marine Park","Departure"]},
+   {r:"in",n:"Himachal",c:"IXC",d:"6N/7D",p:"9,600",t:["Shimla","Manali","Solang"],g:"linear-gradient(160deg,#6f7fb3,#272f55)",i:["Arrive Chandigarh, drive to Shimla","Kufri and Mall Road","Drive to Manali via Kullu","Solang valley","Atal Tunnel and Sissu","Manali local sightseeing","Return to Chandigarh, depart"]},
+   {r:"intl",n:"Singapore",c:"SIN",d:"4N/5D",p:"47,499",t:["Universal Studios","Sentosa","Gardens by the Bay"],g:"linear-gradient(160deg,#d94f5c,#5a1a24)",i:["Arrive Singapore, private transfer to hotel","Singapore city tour, evening at Gardens by the Bay (Flower Dome, Cloud Forest)","Universal Studios Singapore","Sentosa Island with one-way cable car","Departure"]},
+   {r:"intl",n:"Bali Pool Villa",s:"bali-pool-villa",img:"bali",c:"DPS",d:"6N/7D",p:"33,499",t:["Private pool villa","Floating breakfast","Water sports"],g:"linear-gradient(160deg,#3ca39b,#14504d)",i:["Arrive Bali, private transfer to hotel","Water sports: jet ski, parasailing, banana boat","Tandem ATV ride and Aloha swing","Gates of Heaven, Besakih temple and Tirta Gangga","Ubud, Kintamani volcano view and Tegenungan waterfall; check in to private pool villa","Floating breakfast; Uluwatu temple, GWK and Kecak dance at sunset","Departure"]},
+   {r:"intl",n:"Europe Highlights",s:"europe-highlights",img:"europe-highlights",c:"CDG",d:"7N/8D",p:"86,499",t:["Paris","Salzburg","Budapest","Dec & Jan dates"],g:"linear-gradient(160deg,#4b5d9b,#1b2244)",i:["Arrive Paris","Paris sightseeing","Travel to Munich","Salzburg","Ljubljana","Travel to Budapest","Budapest sightseeing","Departure from Budapest"]},
+   {r:"intl",n:"Central Europe",s:"central-europe",img:"central-europe",c:"MUC",d:"6N/7D",p:"1,02,499",t:["Munich","Salzburg","Ljubljana","Budapest"],g:"linear-gradient(160deg,#7a5c9e,#2e1f45)",i:["Arrive Munich","Munich sightseeing","Salzburg","Ljubljana","Travel to Budapest","Budapest sightseeing","Departure from Budapest"]},
+   {r:"intl",n:"Europe Grand Tour",s:"europe-grand",img:"europe-grand",c:"ZRH",d:"9N/10D",p:"1,19,500",t:["Paris","Zurich","Munich","Budapest"],g:"linear-gradient(160deg,#3f7f9e,#13334a)",i:["Arrive Paris","Paris sightseeing","Travel to Zurich","Zurich and Switzerland","Travel to Munich","Salzburg","Ljubljana","Travel to Budapest","Budapest sightseeing","Departure from Budapest"]},
+   {r:"intl",n:"Paris Swiss Italy",s:"paris-swiss-italy",img:"paris-swiss-italy",c:"FCO",d:"9N/10D",p:"1,65,499",t:["Paris","Zurich","Venice","Rome"],g:"linear-gradient(160deg,#b0623e,#4a2213)",i:["Arrive Paris","Paris sightseeing","Travel to Zurich","Zurich and Switzerland","Travel to Milan","Venice","Travel to Rome","Rome sightseeing","Vatican and Rome at leisure","Departure from Rome"]}];
+
+  // Optional fields: s = page name (default: name in lower case), img = photo in images/ (default: same; false = no photo).
+  const slug=x=>(x.s||x.n.toLowerCase())+'-tour-package.html', photo=x=>x.img===false?'':`url(images/${x.img||x.n.toLowerCase()}.jpg),`;
 
   const box=$('#pkgs');
   if(box){
     const lim=+box.dataset.limit||99, detail=box.hasAttribute('data-detail');
-    const draw=f=>{box.innerHTML=P.filter(x=>f==='all'||x.r===f).slice(0,lim).map(x=>`<article class="pkg"><div class="art" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),url(images/${x.n.toLowerCase()}.jpg),${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></div><div class="body"><h3>${x.n}</h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>₹${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
+    const draw=f=>{box.innerHTML=P.filter(x=>f==='all'||x.r===f).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>₹${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
     draw('all');
     $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw(b.dataset.f)}));
   }
 
   const WA='https://wa.me/917075040406?text=';
+  // Floating WhatsApp buttons open with a message naming the page, so the team knows what the visitor was reading.
+  const h1=$('h1');
+  $$('a.wa').forEach(a=>a.href=WA+encodeURIComponent('Hello Hyderabad Holidays Co., I found you on hydholidays.com'+(h1&&location.pathname.length>1&&!/index\.html$/.test(location.pathname)?' (page: '+h1.textContent.trim()+')':'')+'. I would like some help planning a trip.'));
   // Enquiries are emailed by the /api/enquiry function on Vercel (Zoho Mail SMTP).
   // Absolute URL so the form also works on hydholidays.com, which is hosted on AWS.
   const MAIL_API='https://hydholidays-website.vercel.app/api/enquiry';
@@ -45,13 +57,13 @@
       <input class="hp" id="dq-company" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
       <label>Full name<input id="dq-name" required autocomplete="name" placeholder="Your name"></label>
       <label>Phone / WhatsApp<input id="dq-phone" required inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210"></label>
-      <label class="full">Email<input id="dq-email" type="email" required autocomplete="email" placeholder="you@example.com"></label>
+      <label class="full">Email (optional)<input id="dq-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <label class="dq-trip">Travel month<input id="dq-month" type="month" value="2026-12"></label>
       <label class="dq-trip">Travellers<select id="dq-pax"><option>2 adults</option><option>2 adults, 1 child</option><option>2 adults, 2 children</option><option>1 adult</option><option>Group (6+)</option></select></label>
       <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="Hotel category, flights from Hyderabad, special requests"></textarea></label>
-      <p class="dq-err full" id="dq-err" hidden>Please enter your name, a phone number with at least 10 digits and a valid email.</p>
+      <p class="dq-err full" id="dq-err" hidden>Please enter your name and a phone number with at least 10 digits. Check the email address if you added one.</p>
       <button class="btn full" type="submit" id="dq-send">Send enquiry</button>
-      <p class="dq-note full">We reply within one working day. Prefer to call? <b>+91 70750 40406</b></p>
+      <p class="dq-note full">We reply within one working day. Prefer to call? <a href="tel:+917075040406"><b>+91 70750 40406</b></a></p>
     </div>
     <div class="dq-body dq-done" id="dq-done" hidden>
       <div class="full dq-ok" id="dq-ok"><b>Thanks, your enquiry has been sent.</b> We'll reply by email or phone within one working day.</div>
@@ -70,7 +82,7 @@
     if(o.title){q('dq-title').textContent=o.title;q('dq-sub').textContent=o.sub||'';dlg.querySelector('.dq-head .eyebrow').textContent=o.eyebrow||'Enquiry'}
     q('dq-msg').value=o.msg||'';
     dlg.querySelectorAll('.dq-trip').forEach(l=>l.hidden=!!o.title);
-    q('dq-art').style.backgroundImage=cur?`url(images/${cur.n.toLowerCase()}.jpg),${cur.g}`:'';
+    q('dq-art').style.backgroundImage=cur?`${photo(cur)}${cur.g}`:'';
     q('dq-art').hidden=!cur;q('dq-err').hidden=true;show(true);
     dlg.showModal();setTimeout(()=>q('dq-name').focus(),30)};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-enq]');if(b){e.preventDefault();openEnq(b.dataset.enq)}});
@@ -80,7 +92,7 @@
   q('dq-form').addEventListener('submit',e=>{e.preventDefault();
     const name=q('dq-name').value.trim(),ph=q('dq-phone').value.replace(/\D/g,'');
     const em=q('dq-email').value.trim();
-    if(!name||ph.length<10||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){q('dq-err').hidden=false;return}
+    if(!name||ph.length<10||(em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))){q('dq-err').hidden=false;return}
     const txt=['Hello Hyderabad Holidays Co., I would like a quote.',cur?`Package: ${cur.n} ${cur.d} (from ₹${cur.p} pp)`:(curName?`Enquiry: ${curName}`:''),`Name: ${name}`,`Phone: ${q('dq-phone').value.trim()}`,...(q('dq-month').closest('label').hidden?[]:[`Travel month: ${q('dq-month').value||'-'}`,`Travellers: ${q('dq-pax').value}`]),q('dq-msg').value.trim()?`Details:\n${q('dq-msg').value.trim()}`:''].filter(Boolean).join('\n');
     q('dq-wa').href=WA+encodeURIComponent(txt);
     const btn=q('dq-send');btn.disabled=true;btn.textContent='Sending…';
