@@ -30,7 +30,7 @@ const GRAPH = `https://graph.facebook.com/${env('GRAPH_API_VERSION', 'v23.0')}`;
 const HISTORY_FILE = env('HISTORY_FILE', path.join(HERE, '.state', 'history.json'));
 const OUT_DIR = path.join(HERE, 'out');
 const LOGO = path.join(HERE, '..', 'logo.png');
-const MODEL = env('CLAUDE_MODEL', 'claude-opus-5-5');
+const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const WHATSAPP = '+91 70750 40406';
 const DRY_RUN = process.argv.includes('--dry-run') || env('POST_DRY_RUN') === '1';
 const X_LINK_LEN = 23; // X counts every link as 23 characters

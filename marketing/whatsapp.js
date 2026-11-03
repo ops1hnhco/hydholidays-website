@@ -35,7 +35,7 @@ const AUTH = path.join(STATE, 'auth');
 const MEDIA = path.join(STATE, 'media');
 const INBOX = path.join(STATE, 'inbox.jsonl');
 const DB_FILE = path.join(STATE, 'db.json');
-const MODEL = env('CLAUDE_MODEL', 'claude-opus-5-5');
+const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const GROUPS = env('WA_GROUPS', '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 const OWNER_JID = `${env('WA_OWNER', '').replace(/\D/g, '')}@s.whatsapp.net`;
 const MARKUP = Number(env('MARKUP_PERCENT', '10'));

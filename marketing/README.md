@@ -120,7 +120,7 @@ the video (`video.mp4`) and the full post are saved in `marketing/out/`. `KIND="
   actually posted are recorded. If the cache is cleared, the agent simply starts a new list.
 - **GitHub pauses scheduled workflows after 60 days with no commits.** It emails a warning first;
   re-enable the workflow on the Actions tab, or push any commit.
-- **Cost.** Claude: two Opus 5.5 requests with up to 20 web searches and 10 page reads a day, roughly 20-50 US cents a day (twice that on a day the research has to be redone).
+- **Cost.** Claude: two Sonnet 5.5 requests with up to 20 web searches and 10 page reads a day, roughly 10-25 US cents a day (twice that on a day the research has to be redone).
   If Claude declines a request, the API retries it on a fallback model automatically
   (`fallbacks: "default"`).
 - If a platform fails (for example, an expired token), the others still post, and the run is marked

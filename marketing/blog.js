@@ -26,7 +26,7 @@ const ROOT = path.join(HERE, '..');
 const BLOG = path.join(ROOT, 'blog');
 const POSTS_FILE = path.join(BLOG, 'posts.json');
 const SITE = 'https://www.hydholidays.com/';
-const MODEL = env('CLAUDE_MODEL', 'claude-opus-5-5');
+const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const WHATSAPP = '+91 70750 40406';
 const CHANNEL = env('WHATSAPP_CHANNEL_URL', ''); // e.g. https://whatsapp.com/channel/...; blank = link to our chat
 const DRY_RUN = process.argv.includes('--dry-run');
