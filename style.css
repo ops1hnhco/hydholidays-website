@@ -349,3 +349,12 @@ ul.check li::before{content:"✓";position:absolute;left:4px;color:var(--accent)
 .blog-item:hover{border-color:var(--accent);transform:translateY(-2px)}
 .blog-item h2{font-size:24px}
 .blog-item p{color:var(--muted);font-size:15px}
+
+/* Paused services. Elements tagged data-svc="visa|flights|insurance" are the visa, flight-booking and
+   insurance offers; .svc-alt is the wording shown in their place while those services are paused.
+   SERVICES PAUSED: to bring them back, delete the rules marked [paused] below and set
+   paused: [] in scripts/services.js (see README, "Paused services"). */
+.svc-alt{display:none}
+[data-svc]{display:none!important} /* [paused] */
+.svc-alt{display:revert} /* [paused] */
+.svc,.revs{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))} /* [paused] fewer cards on the home page */

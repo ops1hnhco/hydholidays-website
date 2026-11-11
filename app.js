@@ -47,6 +47,10 @@
   const sendMail=data=>fetch(MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
     .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false)
     .then(ok=>{if(ok)track('generate_lead',{form_name:data.service||data.enquiry||'enquiry',page_path:location.pathname});return ok});
+  // True while a service (visa, flights, insurance) is paused by the [data-svc] rule in style.css.
+  const paused=s=>{const e=document.createElement('i');e.dataset.svc=s;document.body.appendChild(e);const off=getComputedStyle(e).display==='none';e.remove();return off};
+  // Some mobile browsers ignore display:none on <option>, so paused choices are removed instead.
+  $$('option[data-svc]').forEach(o=>{if(paused(o.dataset.svc))o.remove()});
   // ---- Enquiry popup ----
   const dlg=document.createElement('dialog');
   dlg.className='enq-dlg';dlg.setAttribute('aria-labelledby','dq-title');
@@ -60,7 +64,7 @@
       <label class="full">Email (optional)<input id="dq-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <label class="dq-trip">Travel month<input id="dq-month" type="month" value="2026-12"></label>
       <label class="dq-trip">Travellers<select id="dq-pax"><option>2 adults</option><option>2 adults, 1 child</option><option>2 adults, 2 children</option><option>1 adult</option><option>Group (6+)</option></select></label>
-      <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="Hotel category, flights from Hyderabad, special requests"></textarea></label>
+      <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="${paused('flights')?'Hotel category, special requests':'Hotel category, flights from Hyderabad, special requests'}"></textarea></label>
       <p class="dq-err full" id="dq-err" hidden>Please enter your name and a phone number with at least 10 digits. Check the email address if you added one.</p>
       <button class="btn full" type="submit" id="dq-send">Send enquiry</button>
       <p class="dq-note full">We reply within one working day. Prefer to call? <a href="tel:+917075040406"><b>+91 70750 40406</b></a></p>

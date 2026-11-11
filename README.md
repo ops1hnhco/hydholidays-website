@@ -37,3 +37,20 @@ Setup: `marketing/README.md`.
 Each holiday package has its own page (`kashmir-tour-package.html`, `dubai-tour-package.html`, …) generated
 from the package list in `app.js` plus the copy in `scripts/build-package-pages.js`. After changing a price,
 itinerary or adding a package, run `node scripts/build-package-pages.js`; it rebuilds those pages and `sitemap.xml`.
+
+## Paused services
+Visa assistance, flight booking and travel insurance are hidden for now (not deleted). Packages that
+include a visa or flights in their price (Dubai, Vietnam, Bali) are unchanged.
+- **On the pages:** each visa, flight or insurance item is tagged `data-svc="visa|flights|insurance"`, and
+  `.svc-alt` holds the wording shown in its place. The rules marked `[paused]` at the end of `style.css` do the hiding.
+- **Package pages and sitemap:** `scripts/services.js` lists the paused services. Package pages say flights and
+  visas are not included, and the visa pages are left out of `sitemap.xml`.
+- **Visa pages:** the files stay in the repo; the Amplify build (`scripts/pause-pages.js`) publishes them as
+  redirects to `packages.html`.
+
+To bring everything back:
+1. Delete the rules marked `[paused]` at the end of `style.css`.
+2. Set `paused: []` in `scripts/services.js`.
+3. Run `node scripts/build-package-pages.js`, then commit and push.
+4. Page titles and descriptions on `index.html`, `flights-hotels.html` and `packages.html` were reworded
+   without visa and flight wording; restore them from the commit "Pause visa, flight and insurance services".

@@ -12,7 +12,7 @@
 <header><div class="wrap">
   <a class="brand" href="./"><img class="seal" src="logo.png" alt="Hyderabad Holidays Co. seal" width="48" height="48"><span><b>Hyderabad Holidays Co.</b><small>Travel &amp; Holiday Services</small></span></a>
   <button class="menu-btn" type="button" id="menu" aria-expanded="false" aria-controls="nav">Menu</button>
-  <nav id="nav"><ul><li><a href="./">Home</a></li><li><a href="packages.html">Packages</a></li><li><a href="visa.html">Visa</a></li><li><a href="flights-hotels.html">Flights & Hotels</a></li><li><a href="blog.html">Blog</a></li><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li></ul></nav>
+  <nav id="nav"><ul><li><a href="./">Home</a></li><li><a href="packages.html">Packages</a></li><li data-svc="visa"><a href="visa.html">Visa</a></li><li><a href="flights-hotels.html"><span data-svc="flights">Flights &amp; </span>Hotels</a></li><li><a href="blog.html">Blog</a></li><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li></ul></nav>
   <a class="btn cta" href="contact.html" data-enq="">Plan my trip</a>
 </div></header><main id="top"><div class="pagehead"><div class="wrap"><div class="crumb"><a href="./">Home</a> / Pricing</div><h1>Pricing and service fees</h1><p>What you pay for, how it is calculated, and when payment is due. All prices are in Indian Rupees (INR).</p></div></div>
 <section><div class="wrap prose" style="max-width:900px">
@@ -38,24 +38,24 @@
   </tbody></table></div>
   <h2>Service fees</h2>
   <div class="tbl"><table><thead><tr><th>Service</th><th>Our fee</th><th>Charged separately</th></tr></thead><tbody>
-    <tr><td>Domestic flight ticket</td><td class="n">₹<mark class="fill">300</mark> per passenger</td><td>Airline fare and taxes</td></tr>
-    <tr><td>International flight ticket</td><td class="n">₹<mark class="fill">750</mark> per passenger</td><td>Airline fare and taxes</td></tr>
+    <tr data-svc="flights"><td>Domestic flight ticket</td><td class="n">₹<mark class="fill">300</mark> per passenger</td><td>Airline fare and taxes</td></tr>
+    <tr data-svc="flights"><td>International flight ticket</td><td class="n">₹<mark class="fill">750</mark> per passenger</td><td>Airline fare and taxes</td></tr>
     <tr><td>Hotel booking (standalone)</td><td class="n">₹<mark class="fill">500</mark> per booking</td><td>Hotel tariff</td></tr>
-    <tr><td>e-Visa assistance</td><td class="n">₹<mark class="fill">999</mark> per applicant</td><td>Government visa fee</td></tr>
-    <tr><td>Sticker visa (UK, Schengen, USA, etc.)</td><td class="n">₹<mark class="fill">2,999</mark> per applicant</td><td>Embassy and VFS fees</td></tr>
-    <tr><td>Date change / reissue</td><td class="n">₹<mark class="fill">500</mark> per passenger</td><td>Airline change fee and fare difference</td></tr>
+    <tr data-svc="visa"><td>e-Visa assistance</td><td class="n">₹<mark class="fill">999</mark> per applicant</td><td>Government visa fee</td></tr>
+    <tr data-svc="visa"><td>Sticker visa (UK, Schengen, USA, etc.)</td><td class="n">₹<mark class="fill">2,999</mark> per applicant</td><td>Embassy and VFS fees</td></tr>
+    <tr data-svc="flights"><td>Date change / reissue</td><td class="n">₹<mark class="fill">500</mark> per passenger</td><td>Airline change fee and fare difference</td></tr>
   </tbody></table></div>
   <h2>Taxes</h2>
   <p>GST is charged as applicable on tour packages and service fees, and is shown separately on your invoice. Tax Collected at Source (TCS) is collected on overseas tour packages as required by the Income Tax Act, 1961, and a PAN is needed for every traveller. TCS can be claimed against your income tax.</p>
   <h2>When payment is due</h2>
-  <ul><li><b>Holiday packages:</b> an advance of <mark class="fill">30%</mark> confirms the booking; the balance is due <mark class="fill">21</mark> days before departure.</li><li><b>Flights:</b> full payment at the time of ticketing, as airlines do not hold fares.</li><li><b>Visa services:</b> service fee and government fees in full before filing.</li></ul>
+  <ul><li><b>Holiday packages:</b> an advance of <mark class="fill">30%</mark> confirms the booking; the balance is due <mark class="fill">21</mark> days before departure.</li><li data-svc="flights"><b>Flights:</b> full payment at the time of ticketing, as airlines do not hold fares.</li><li data-svc="visa"><b>Visa services:</b> service fee and government fees in full before filing.</li></ul>
   <h2>How you can pay</h2>
   <p>UPI, debit and credit cards, net banking and wallets through our secure payment gateway, or bank transfer to our current account. We never ask for your card PIN, OTP or CVV over phone, email or WhatsApp.</p>
   <p>Cancellations and refunds are covered in our <a href="refund.html">Cancellation &amp; Refund Policy</a>.</p>
 </div></section></main><footer><div class="wrap">
   <div><div class="brand"><img class="seal" src="logo.png" alt="" width="44" height="44"><span><b>Hyderabad Holidays Co.</b></span></div>
-  <p style="opacity:.7;margin-top:14px;max-width:34ch">Tour packages, visa services, flights and hotels for travellers from Hyderabad.</p></div>
-  <div><h4>Explore</h4><ul><li><a href="packages.html">Holiday packages</a></li><li><a href="visa.html">Visa services</a></li><li><a href="flights-hotels.html">Flights &amp; hotels</a></li><li><a href="pricing.html">Pricing</a></li><li><a href="blog.html">Travel news</a></li></ul></div>
+  <p style="opacity:.7;margin-top:14px;max-width:34ch"><span data-svc="visa flights">Tour packages, visa services, flights and hotels for travellers from Hyderabad.</span><span class="svc-alt">Tour packages and hotels for travellers from Hyderabad.</span></p></div>
+  <div><h4>Explore</h4><ul><li><a href="packages.html">Holiday packages</a></li><li data-svc="visa"><a href="visa.html">Visa services</a></li><li><a href="flights-hotels.html"><span data-svc="flights">Flights &amp; hotels</span><span class="svc-alt">Hotels</span></a></li><li><a href="pricing.html">Pricing</a></li><li><a href="blog.html">Travel news</a></li></ul></div>
   <div><h4>Company</h4><ul><li><a href="about.html">About us</a></li><li><a href="contact.html">Contact us</a></li><li><a href="faq.html">FAQs</a></li><li><a href="credits.html">Photo credits</a></li></ul></div>
   <div><h4>Policies</h4><ul><li><a href="terms.html">Terms & Conditions</a></li><li><a href="privacy.html">Privacy Policy</a></li><li><a href="refund.html">Cancellation & Refund</a></li><li><a href="shipping.html">Service Delivery Policy</a></li><li><a href="disclaimer.html">Disclaimer</a></li></ul></div>
   <div><h4>Contact</h4><ul><li><a href="tel:+917075040406">+91 70750 40406</a></li><li><a href="mailto:contact@hydholidays.com">contact@hydholidays.com</a></li><li>Flat No. 406, 4th Floor, Gayathri Residency, KPHB 6th Phase Road, near MedPlus, Kukatpally, Hyderabad, Telangana 500072</li></ul></div>

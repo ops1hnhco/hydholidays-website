@@ -4,7 +4,9 @@
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const SITE = 'https://www.hydholidays.com/';
-const skip = /^(credits|disclaimer|privacy|terms|refund|shipping)\.html$/;
+const { paused } = require('./services');
+// Visa pages stay on disk but are left out while visa services are paused (scripts/services.js).
+const skip = paused.includes('visa') ? /^(credits|disclaimer|privacy|terms|refund|shipping|visa(-[a-z]+)?)\.html$/ : /^(credits|disclaimer|privacy|terms|refund|shipping)\.html$/;
 const today = new Date().toISOString().slice(0, 10);
 
 const pages = fs.readdirSync(root).filter(f => f.endsWith('.html') && !skip.test(f))
