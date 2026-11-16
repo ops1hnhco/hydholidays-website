@@ -4,7 +4,7 @@
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const SITE = 'https://www.hydholidays.com/';
-const { paused } = require('./services');
+const { paused, hiddenPost } = require('./services');
 // Visa pages stay on disk but are left out while visa services are paused (scripts/services.js).
 const skip = paused.includes('visa') ? /^(credits|disclaimer|privacy|terms|refund|shipping|visa(-[a-z]+)?)\.html$/ : /^(credits|disclaimer|privacy|terms|refund|shipping)\.html$/;
 const today = new Date().toISOString().slice(0, 10);
@@ -12,7 +12,7 @@ const today = new Date().toISOString().slice(0, 10);
 const pages = fs.readdirSync(root).filter(f => f.endsWith('.html') && !skip.test(f))
   .sort((a, b) => (b === 'index.html') - (a === 'index.html') || a.localeCompare(b));
 const blogDir = path.join(root, 'blog');
-const posts = fs.existsSync(blogDir) ? fs.readdirSync(blogDir).filter(f => f.endsWith('.html')).sort().reverse().map(f => 'blog/' + f) : [];
+const posts = fs.existsSync(blogDir) ? fs.readdirSync(blogDir).filter(f => f.endsWith('.html') && !hiddenPost(f)).sort().reverse().map(f => 'blog/' + f) : [];
 
 const urls = [...pages, ...posts].map(f => `  <url><loc>${f === 'index.html' ? SITE : SITE + f}</loc><lastmod>${today}</lastmod></url>`);
 fs.writeFileSync(path.join(root, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`);

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
-import { OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
+import { NO_VISA_FLIGHTS, OFFER_GUIDE, PAUSED, PAUSED_NOTE, hiddenPost, offerBrief, readOffer } from './offer.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +30,9 @@ const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const WHATSAPP = '+91 70750 40406';
 const CHANNEL = env('WHATSAPP_CHANNEL_URL', ''); // e.g. https://whatsapp.com/channel/...; blank = link to our chat
 const DRY_RUN = process.argv.includes('--dry-run');
-const CATEGORIES = ['Visa news', 'Flights & airports', 'Destinations', 'Travel advisory', 'Offers'];
+// Visa and flight categories are dropped while those services are paused (scripts/services.js).
+const CATEGORIES = ['Visa news', 'Flights & airports', 'Destinations', 'Travel advisory', 'Offers']
+  .filter(c => !(NO_VISA_FLIGHTS && /Visa|Flights/.test(c)));
 
 const loadPosts = () => (fs.existsSync(POSTS_FILE) ? JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8')) : []);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -38,25 +40,21 @@ const istDate = d => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0,
 const nice = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
 // Pages an article can point readers to for help (visa guides, packages).
-// Paused services (scripts/services.js): their pages can't be linked and the articles mustn't offer them.
-const { paused } = require('../scripts/services');
+// Visa pages are left out while visa services are paused (scripts/services.js).
 const sitePages = fs.readdirSync(ROOT).filter(f => /^(visa(-[a-z]+)?|[a-z]+-tour-package|packages|flights-hotels)\.html$/.test(f))
-  .filter(f => !(paused.includes('visa') && /^visa(-[a-z]+)?\.html$/.test(f))).sort();
-const PAUSED_NOTE = paused.length ? `
-
-We are not currently offering ${paused.map(s => ({ visa: 'visa assistance', flights: 'flight booking', insurance: 'travel insurance' })[s] || s).join(', ')} as separate services. You may report news about these topics, but never offer, suggest or ask readers to contact us for them.` : '';
+  .filter(f => !(PAUSED.includes('visa') && /^visa(-[a-z]+)?\.html$/.test(f))).sort();
 const pageTitle = f => fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<h1>(.*?)<\/h1>/)?.[1].replace(/<[^>]+>/g, '') || f;
 
 // ---- Research and writing ----
 
-const ABOUT = `Hyderabad Holidays Co. is a travel agency in KPHB, Hyderabad, India. It plans holidays in India and abroad, books flights and hotels, and helps with visas. Its readers are mostly Indian travellers from Hyderabad, Telangana and Andhra Pradesh. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
+const ABOUT = `Hyderabad Holidays Co. is a travel agency in KPHB, Hyderabad, India. It plans holidays in India and abroad${NO_VISA_FLIGHTS ? ' and books hotels and transfers' : ', books flights and hotels, and helps with visas'}. Its readers are mostly Indian travellers from Hyderabad, Telangana and Andhra Pradesh. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
 
 const RESEARCH_SYSTEM = `You research the daily news article for the Hyderabad Holidays Co. blog. ${ABOUT}
 
 The article is published on the website without anyone checking it first, so accuracy matters more than anything.
 
 Choosing:
-- One recent news item (ideally from the last 7 days, never older than 3 weeks) that matters to Indian travellers, especially from Hyderabad: visa and entry rule changes, new fees or arrival cards, new flights or routes from Hyderabad (HYD), airport changes, travel advisories, destination openings or closures.
+- One recent news item (ideally from the last 7 days, never older than 3 weeks) that matters to Indian travellers, especially from Hyderabad: ${NO_VISA_FLIGHTS ? 'travel advisories, destination openings or closures, new attractions, festivals and events, entry fees at sights, and season or weather updates for popular holiday places' : 'visa and entry rule changes, new fees or arrival cards, new flights or routes from Hyderabad (HYD), airport changes, travel advisories, destination openings or closures'}.
 - Do not repeat a story already covered in the recent articles you are given, unless there is a genuinely new development.
 
 Researching:
@@ -64,6 +62,7 @@ Researching:
 - Prefer official sources (governments, embassies, VFS, airlines, airports, tourism boards) and established news outlets. Use at least two sources when you can.
 - Do not state anything as fact unless a page you read supports it. Leave out what you could not confirm.
 - If a story cannot be confirmed, choose a different one that can.
+${PAUSED_NOTE}
 
 Finish with a brief for the writer:
 STATUS: READY if every fact below is confirmed from a page you read; otherwise NOT READY, with the reason
@@ -190,7 +189,7 @@ function shell({ title, description, url, image, ld = [], inBlogDir }) {
 }
 
 const followLink = CHANNEL || `https://wa.me/917075040406?text=${encodeURIComponent('Hello Hyderabad Holidays Co., please add me to your travel updates.')}`;
-const followCard = `<div class="cta-card"><div><h3>Travel updates on WhatsApp</h3><p>Visa rule changes, new flights from Hyderabad and our latest offers, a few times a week.</p></div><div class="ctas"><a class="btn wa-go" href="${followLink}" target="_blank" rel="noopener">${CHANNEL ? 'Follow our WhatsApp Channel' : 'Get updates on WhatsApp'}</a></div></div>`;
+const followCard = `<div class="cta-card"><div><h3>Travel updates on WhatsApp</h3><p>${NO_VISA_FLIGHTS ? 'Travel news, holiday ideas' : 'Visa rule changes, new flights from Hyderabad'} and our latest offers, a few times a week.</p></div><div class="ctas"><a class="btn wa-go" href="${followLink}" target="_blank" rel="noopener">${CHANNEL ? 'Follow our WhatsApp Channel' : 'Get updates on WhatsApp'}</a></div></div>`;
 
 function renderPost(a, date) {
   const file = `blog/${date}-${a.slug}.html`, url = SITE + file;
@@ -213,12 +212,15 @@ function renderPost(a, date) {
   return { file, html };
 }
 
-function renderIndex(posts) {
+function renderIndex(all) {
+  const posts = all.filter(p => !hiddenPost(p.file)); // older visa and flight news is hidden while those services are paused
   const list = posts.length
     ? `<div class="blog-list">${posts.map(p => `<a class="blog-item" href="${p.file}"><span class="meta">${nice(p.date)} · ${esc(p.category)}</span><h2>${esc(p.title)}</h2><p>${esc(p.description)}</p></a>`).join('')}</div>`
     : '<p class="notice">Our first update is on its way. Check back tomorrow.</p>';
-  const html = shell({ title: 'Travel & Visa News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Daily updates on visa rules, new flights from Hyderabad, airports and travel advisories, checked against official sources.', url: SITE + 'blog.html' })
-    + `<main id="top"><div class="pagehead"><div class="wrap"><div class="crumb"><a href="./">Home</a> / Blog</div><h1>Travel &amp; visa news</h1><p>Visa rule changes, new flights from Hyderabad, airport updates and travel advisories, checked against official sources and explained for travellers from Hyderabad.</p></div></div>
+  const html = shell(NO_VISA_FLIGHTS
+    ? { title: 'Travel News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Travel advisories, destination news and holiday ideas for travellers from Hyderabad, checked against official sources.', url: SITE + 'blog.html' }
+    : { title: 'Travel & Visa News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Daily updates on visa rules, new flights from Hyderabad, airports and travel advisories, checked against official sources.', url: SITE + 'blog.html' })
+    + `<main id="top"><div class="pagehead"><div class="wrap"><div class="crumb"><a href="./">Home</a> / Blog</div>${NO_VISA_FLIGHTS ? '<h1>Travel news</h1><p>Travel advisories, destination news and holiday ideas, checked against official sources and explained for travellers from Hyderabad.</p>' : '<h1>Travel &amp; visa news</h1><p>Visa rule changes, new flights from Hyderabad, airport updates and travel advisories, checked against official sources and explained for travellers from Hyderabad.</p>'}</div></div>
 <section><div class="wrap">${list}<div style="max-width:900px">${followCard}</div></div></section>
 ` + FOOT;
   fs.writeFileSync(path.join(ROOT, 'blog.html'), html);

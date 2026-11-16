@@ -21,7 +21,7 @@ import ffmpegPath from 'ffmpeg-static';
 import sharp from 'sharp';
 import { TwitterApi } from 'twitter-api-v2';
 import { z } from 'zod';
-import { OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
+import { NO_VISA_FLIGHTS, OFFER_GUIDE, PAUSED, PAUSED_NOTE, offerBrief, readOffer } from './offer.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -36,14 +36,16 @@ const DRY_RUN = process.argv.includes('--dry-run') || env('POST_DRY_RUN') === '1
 const X_LINK_LEN = 23; // X counts every link as 23 characters
 
 // One kind a day, in this order. A flight offer day becomes travel news if no current offer is found.
-const KINDS = ['domestic package', 'flight offer', 'international package', 'travel news'];
+// Flight offers are skipped while flight booking is paused (scripts/services.js).
+const ALL_KINDS = ['domestic package', 'flight offer', 'international package', 'travel news'];
+const KINDS = ALL_KINDS.filter(k => !(k === 'flight offer' && PAUSED.includes('flights')));
 const kindFor = now => KINDS[Math.floor((now.getTime() + 5.5 * 3600e3) / 86400e3) % KINDS.length]; // by IST date
 
 const KIND_GUIDE = {
   'domestic package': `A holiday idea in India that we can arrange from Hyderabad: a destination that is in season in the coming weeks, a suggested length (for example 4 nights / 5 days), the route and 3-5 highlights. Check the season, weather and highlights. Do not give a price; we quote every trip on request.`,
-  'international package': `A holiday idea abroad that suits Indian travellers now: a destination that is in season, a suggested length, the route and 3-5 highlights, and the visa situation for Indian passport holders (visa-free, visa on arrival, e-visa or visa needed) only if an official or reliable source confirms it. Do not give a price; we quote every trip on request.`,
+  'international package': `A holiday idea abroad that suits Indian travellers now: a destination that is in season, a suggested length, the route and 3-5 highlights${NO_VISA_FLIGHTS ? '' : ', and the visa situation for Indian passport holders (visa-free, visa on arrival, e-visa or visa needed) only if an official or reliable source confirms it'}. Do not give a price; we quote every trip on request.`,
   'flight offer': `A current airline sale or fare offer that Indian travellers, ideally from Hyderabad (HYD), can book now. It must come from the airline's own announcement or established news from the last two weeks, with the airline, routes, booking window and travel period. Quote fares only exactly as the source gives them and say they are the airline's fares, subject to availability. We help customers book these flights. If you cannot find a genuine current offer, switch to an important travel news item instead and set KIND to travel news.`,
-  'travel news': `Important, recent news that affects Indian travellers: visa and entry rule changes, new flights or routes (especially from Hyderabad), airport changes, travel advisories, new fees or arrival cards. From the last few weeks only, confirmed by official sources or established news outlets. Explain what it means for the traveller.`,
+  'travel news': `Important, recent news that affects Indian travellers: ${NO_VISA_FLIGHTS ? 'travel advisories, destination openings or closures, new attractions, festivals and events, and entry fees at sights' : 'visa and entry rule changes, new flights or routes (especially from Hyderabad), airport changes, travel advisories, new fees or arrival cards'}. From the last few weeks only, confirmed by official sources or established news outlets. Explain what it means for the traveller.`,
 };
 
 // ---- Memory: what was posted before ----
@@ -58,7 +60,7 @@ function saveHistory(list) {
 
 // ---- Research and writing ----
 
-const ABOUT = `Hyderabad Holidays Co. is a travel agency in Hyderabad, India. It plans holidays in India and abroad, books flights and hotels, and helps with visas. Its followers are mostly Indian travellers, many from Hyderabad and Telangana. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
+const ABOUT = `Hyderabad Holidays Co. is a travel agency in Hyderabad, India. It plans holidays in India and abroad${NO_VISA_FLIGHTS ? ' and books hotels and transfers' : ', books flights and hotels, and helps with visas'}. Its followers are mostly Indian travellers, many from Hyderabad and Telangana. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
 
 const RESEARCH_SYSTEM = `You are the social media manager for Hyderabad Holidays Co. ${ABOUT}
 
@@ -74,6 +76,7 @@ Researching:
 - Do not state anything as fact unless a page you read supports it. Leave out details you could not confirm.
 - If a story cannot be confirmed, pick a different topic of today's kind that can be. A smaller confirmed story beats a bigger unconfirmed one.
 - Never invent prices, discounts or offers of our own. The only prices allowed are airline fares quoted exactly from a current airline offer.
+${PAUSED_NOTE}
 
 Finish with a brief for the writer:
 STATUS: READY if every fact below is confirmed from a page you read; otherwise NOT READY, with the reason
@@ -107,7 +110,7 @@ Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the 
 
 photo_queries are 3 stock-photo searches of 1-3 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["airport departure board", "airplane window view"]. Never ask for people's faces, flags or logos.
 
-Our own offers: ${OFFER_GUIDE} Put the price, if any, in the card's subline. sources is empty.`;
+Our own offers: ${OFFER_GUIDE} Put the price, if any, in the card's subline. sources is empty.${PAUSED_NOTE}`;
 
 const Post = z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the post is confirmed in it'),
@@ -137,7 +140,7 @@ async function research(client, now, history) {
   const recent = history.slice(-30).map(h => `- ${h.date}: ${h.kind}, ${h.topic}`).join('\n') || '- nothing yet, this is the first post';
   const brief = env('BRIEF');
   const kind = env('KIND', kindFor(now));
-  if (!KIND_GUIDE[kind]) throw new Error(`Unknown KIND "${kind}". Options: ${KINDS.join(', ')}`);
+  if (!KINDS.includes(kind)) throw new Error(`Unknown KIND "${kind}". Options: ${KINDS.join(', ')}`);
   const messages = [{
     role: 'user',
     content: `Today is ${now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full' })}.
@@ -305,14 +308,14 @@ async function findPhoto(client, post, history) {
 // cover the top-right corner and the bottom ~400px, so the logo and contact band move inside that.
 async function background(photo, kind, H) {
   if (photo) return sharp(photo.buffer).resize(1080, H, { fit: 'cover', position: sharp.strategy.attention }).jpeg({ quality: 90 }).toBuffer();
-  const t = THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
+  const t = THEMES[Math.max(0, ALL_KINDS.indexOf(kind)) % THEMES.length];
   return sharp({ create: { width: 1080, height: H, channels: 3, background: t.bg } }).jpeg().toBuffer();
 }
 
 async function textLayer({ kicker, headline, subline }, kind, H, onPhoto) {
   const t = onPhoto
     ? { band: '#0f6b6b', head: '#ffffff', kicker: '#e0b453', sub: '#e2f0ee', bandFg: '#e2f0ee' }
-    : THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
+    : THEMES[Math.max(0, ALL_KINDS.indexOf(kind)) % THEMES.length];
   const W = 1080, X0 = 90, tall = H > 1350;
   let size = 96, lines;
   do { lines = wrap(headline, Math.floor(900 / (size * 0.52))); } while (lines.length > 4 && (size -= 8) > 56);

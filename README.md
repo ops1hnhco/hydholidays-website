@@ -47,10 +47,14 @@ include a visa or flights in their price (Dubai, Vietnam, Bali) are unchanged.
   visas are not included, and the visa pages are left out of `sitemap.xml`.
 - **Visa pages:** the files stay in the repo; the Amplify build (`scripts/pause-pages.js`) publishes them as
   redirects to `packages.html`.
+- **Blog posts:** posts dated before `postsFrom` in `scripts/services.js` (all visa and flight news) are left off
+  `blog.html` and the sitemap, and the Amplify build publishes them as redirects to `blog.html`.
+- **Blog, social and WhatsApp agents (`marketing/`):** while paused they don't write about visas, flights, airports
+  or insurance, social posts skip the "flight offer" day, and airfare-only supplier offers are skipped.
 
 To bring everything back:
 1. Delete the rules marked `[paused]` at the end of `style.css`.
 2. Set `paused: []` in `scripts/services.js`.
-3. Run `node scripts/build-package-pages.js`, then commit and push.
+3. Run `node scripts/build-package-pages.js` and `(cd marketing && node blog.js --index)`, then commit and push.
 4. Page titles and descriptions on `index.html`, `flights-hotels.html` and `packages.html` were reworded
    without visa and flight wording; restore them from the commit "Pause visa, flight and insurance services".
