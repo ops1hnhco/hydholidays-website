@@ -39,10 +39,13 @@
   // Optional fields: s = page name (default: name in lower case), img = photo in images/ (default: same; false = no photo).
   const slug=x=>(x.s||x.n.toLowerCase())+'-tour-package.html', photo=x=>x.img===false?'':`url(images/${x.img||x.n.toLowerCase()}.jpg),`;
 
+  const paused=s=>{const e=document.createElement('i');e.dataset.svc=s;document.body.appendChild(e);const off=getComputedStyle(e).display==='none';e.remove();return off};
+  // Packages with a visa or flights in the price are hidden while those services are paused (scripts/services.js).
+  const hidePkg=x=>x.t.some(t=>/visa|flights/i.test(t))&&(paused('visa')||paused('flights'));
   const box=$('#pkgs');
   if(box){
     const lim=+box.dataset.limit||99, detail=box.hasAttribute('data-detail');
-    const draw=f=>{box.innerHTML=P.filter(x=>f==='all'||x.r===f).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
+    const draw=f=>{box.innerHTML=P.filter(x=>!hidePkg(x)&&(f==='all'||x.r===f)).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
     draw('all');
     $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw(b.dataset.f)}));
   }
@@ -64,7 +67,6 @@
     .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false)
     .then(ok=>{if(ok)track('generate_lead',{form_name:data.service||data.enquiry||'enquiry',page_path:location.pathname});return ok});
   // True while a service (visa, flights, insurance) is paused by the [data-svc] rule in style.css.
-  const paused=s=>{const e=document.createElement('i');e.dataset.svc=s;document.body.appendChild(e);const off=getComputedStyle(e).display==='none';e.remove();return off};
   // Some mobile browsers ignore display:none on <option>, so paused choices are removed instead.
   $$('option[data-svc]').forEach(o=>{if(paused(o.dataset.svc))o.remove()});
   // ---- Enquiry popup ----

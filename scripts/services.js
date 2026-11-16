@@ -10,6 +10,15 @@ module.exports = {
   paused: ['visa', 'flights', 'insurance'],
   postsFrom: '2026-11-16',
 };
+// Packages with a visa or flights in the price (Dubai, Bali, Vietnam: tagged Visa, e-Visa or Flights in
+// app.js) can't be described without them, so they are hidden too while visa or flights are paused.
+const fs = require('fs'), path = require('path');
+const hideWords = () => module.exports.paused.some(s => s === 'visa' || s === 'flights');
+module.exports.hideWords = hideWords;
+module.exports.bundled = x => x.t.some(t => /visa|flights/i.test(t));
+module.exports.loadPackages = root => Function('return ' + fs.readFileSync(path.join(root, 'app.js'), 'utf8').match(/const P=(\[[\s\S]*?\]);/)[1])();
+module.exports.packageFile = x => (x.s || x.n.toLowerCase()) + '-tour-package.html';
+module.exports.hiddenPackages = root => hideWords() ? module.exports.loadPackages(root).filter(module.exports.bundled).map(module.exports.packageFile) : [];
 // A blog post file (blog/YYYY-MM-DD-slug.html) that is hidden while services are paused.
 module.exports.hiddenPost = f => {
   const d = (String(f).match(/(\d{4}-\d{2}-\d{2})-[^/]*\.html$/) || [])[1];

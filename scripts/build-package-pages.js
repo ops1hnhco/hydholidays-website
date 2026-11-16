@@ -16,8 +16,13 @@ const imgPath = x => x.img === false ? null : `images/${x.img || x.n.toLowerCase
 const photo = x => imgPath(x) ? `url(${imgPath(x)}),` : '';
 // While visa or flight services are paused (scripts/services.js), pages say they're not included
 // instead of offering to arrange them. Packages with a visa or flights in the price keep them.
-const { paused } = require('./services');
+const { paused, hideWords, bundled } = require('./services');
 const off = s => paused.includes(s);
+// While visa or flights are paused, the other package pages leave out every mention of visas and flights
+// (the facts box, FAQ, inclusions and "Good to know"). Packages with them in the price are hidden instead
+// (scripts/pause-pages.js), so their pages are built as normal.
+const HIDE = hideWords();
+const VF = /\b(e-?visas?|visas?|flights?)\b/i;
 
 // Optional per-package overrides in EXTRA: incl / excl (lists replacing the defaults), visaFact
 // (the short "Visa" fact), visaName (visa guide link text), dates (departures), indicative (the
@@ -172,6 +177,8 @@ for (const x of P) {
   const flights = x.t.includes('Flights'), visaIncl = x.t.some(t => /visa/i.test(t)) && intl;
   const title = `${e.title.replace(/^./, c => c.toUpperCase())} · ${x.d} from ${money(x)}`;
   const noFlights = !flights && off('flights');
+  const hw = HIDE && !bundled(x), keep = s => !(hw && VF.test(s));
+  const intro = hw ? e.intro.replace(/, covering six countries on one Schengen visa\./, ' across six countries.') : e.intro;
   const desc = `${x.d} ${x.n} package from Hyderabad from ${money(x)} per person: ${x.i.slice(0, 3).join(', ').toLowerCase()} and more. Day-by-day itinerary, hotels in writing${flights ? ', flights included' : noFlights ? '' : ', flights from HYD on request'}.`;
   const place = e.place || x.n;
   const faqs = [
@@ -180,8 +187,8 @@ for (const x of P) {
     [`What is the best time to visit ${place}?`, e.best],
     [`Do I need a visa for ${place}?`, e.visa],
     ['Can I change the itinerary?', 'Yes. You can add or drop nights, upgrade hotels, or travel as a private family or group departure. Tell us your dates and we rebuild the plan.'],
-  ];
-  const related = P.filter(o => o !== x && o.r === x.r).slice(0, 3);
+  ].filter(([q, a]) => keep(q) && keep(a));
+  const related = P.filter(o => o !== x && o.r === x.r && !(HIDE && bundled(o))).slice(0, 3);
 
   let h = head
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} · Hyderabad Holidays Co.</title>`)
@@ -193,7 +200,7 @@ for (const x of P) {
     .replace(/(<meta property="og:image" content=")[^"]*/, `$1${SITE}${imgPath(x) || 'logo.png'}`)
     .replace('<meta name="twitter:card" content="summary">', '<meta name="twitter:card" content="summary_large_image">');
   h = h.replace('</head>', [
-    ld({ '@context': 'https://schema.org', '@type': 'TouristTrip', name: `${x.n} ${x.d} tour package from Hyderabad`, description: e.intro, url,
+    ld({ '@context': 'https://schema.org', '@type': 'TouristTrip', name: `${x.n} ${x.d} tour package from Hyderabad`, description: intro, url,
       image: SITE + (imgPath(x) || 'logo.png'), touristType: ['Families', 'Couples', 'Groups'],
       itinerary: { '@type': 'ItemList', itemListElement: x.i.map((d, i) => ({ '@type': 'ListItem', position: i + 1, name: `Day ${i + 1}: ${d}` })) },
       offers: { '@type': 'Offer', price: x.p.replace(/,/g, ''), priceCurrency: x.cur === '€' ? 'EUR' : 'INR', url, availability: 'https://schema.org/InStock' },
@@ -209,14 +216,14 @@ for (const x of P) {
     <div class="crumb"><a href="./">Home</a> / <a href="packages.html">Packages</a> / ${x.n}</div>
     <span class="eyebrow" style="display:block;margin-top:14px">${x.d} · ${intl ? 'International' : 'India'} · from Hyderabad</span>
     <h1>${esc(e.title.replace(/^./, c => c.toUpperCase()))}</h1>
-    <p>${esc(e.intro)}</p>
-    <div class="pk-price"><div><small>from, per person</small><b>${money(x)}</b></div><ul class="pk-tags">${x.t.map(t => `<li>${t}</li>`).join('')}</ul></div>
+    <p>${esc(intro)}</p>
+    <div class="pk-price"><div><small>from, per person</small><b>${money(x)}</b></div><ul class="pk-tags">${x.t.filter(keep).map(t => `<li>${t}</li>`).join('')}</ul></div>
     <div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px"><button type="button" class="btn" data-enq="${x.n}">Get a free quote</button><a class="btn wa-go" href="${wa}" target="_blank" rel="noopener">WhatsApp us</a></div>
   </div>
   <div class="pk-img" style="background-image:${photo(x)}${x.g}" role="img" aria-label="${x.n}"></div>
 </div></div>
 <section style="padding-block:40px 0"><div class="wrap">
-  <div class="vfacts"><div class="vf"><small>Duration</small><b>${x.d.replace('N/', ' nights / ').replace('D', ' days')}</b></div><div class="vf"><small>Starting price</small><b>${money(x)} per person</b></div><div class="vf"><small>Best time</small><b>${esc(e.best.split(/[;.]/)[0])}</b></div><div class="vf"><small>${intl ? 'Visa' : 'Flights'}</small><b>${intl ? (e.visaFact || (visaIncl ? 'Included' : x.n === 'Thailand' ? 'Visa-free for Indians' : 'On arrival')) : noFlights ? 'Not included' : 'Quoted from HYD'}</b></div></div>
+  <div class="vfacts"><div class="vf"><small>Duration</small><b>${x.d.replace('N/', ' nights / ').replace('D', ' days')}</b></div><div class="vf"><small>Starting price</small><b>${money(x)} per person</b></div><div class="vf"><small>Best time</small><b>${esc(e.best.split(/[;.]/)[0])}</b></div>${hw ? '' : `<div class="vf"><small>${intl ? 'Visa' : 'Flights'}</small><b>${intl ? (e.visaFact || (visaIncl ? 'Included' : x.n === 'Thailand' ? 'Visa-free for Indians' : 'On arrival')) : noFlights ? 'Not included' : 'Quoted from HYD'}</b></div>`}</div>
 </div></section>
 <section><div class="wrap legal-wrap pk-body">
   <article class="prose" style="max-width:none">
@@ -225,11 +232,11 @@ for (const x of P) {
     <ol class="pk-days">${x.i.map((d, i) => `<li><b>Day ${i + 1}</b><span>${esc(d)}</span></li>`).join('')}</ol>
     <h2>What's included</h2>
     <div class="two">
-      <div class="card"><h3 style="margin-top:0">Included</h3><ul class="check">${e.incl ? e.incl.map(i => `<li>${esc(i)}</li>`).join('') : `<li>${nights(x.d)} nights' hotel stay on twin sharing with daily breakfast</li><li>Airport transfers and sightseeing by private vehicle</li><li>Entry tickets listed in the itinerary</li>${flights ? '<li>Return flights</li>' : ''}${visaIncl ? '<li>Tourist visa fee and travel insurance</li>' : ''}`}</ul></div>
-      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || [flights ? 'Visa on arrival fee' : noFlights ? 'Flights from Hyderabad' : 'Flights from Hyderabad (quoted separately)']).map(i => `<li>${esc(i)}</li>`).join('')}<li>Lunch, dinner and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Included</h3><ul class="check">${e.incl ? e.incl.filter(keep).map(i => `<li>${esc(i)}</li>`).join('') : `<li>${nights(x.d)} nights' hotel stay on twin sharing with daily breakfast</li><li>Airport transfers and sightseeing by private vehicle</li><li>Entry tickets listed in the itinerary</li>${flights ? '<li>Return flights</li>' : ''}${visaIncl ? '<li>Tourist visa fee and travel insurance</li>' : ''}`}</ul></div>
+      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || [flights ? 'Visa on arrival fee' : noFlights ? 'Flights from Hyderabad' : 'Flights from Hyderabad (quoted separately)']).filter(keep).map(i => `<li>${esc(i)}</li>`).join('')}<li>Lunch, dinner and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
     </div>
     <h2>Good to know</h2>
-    <ul>${e.dates ? `<li><b>Departures:</b> ${esc(e.dates)}</li>` : ''}<li><b>Best time to visit:</b> ${esc(e.best)}</li><li><b>Visa:</b> ${esc(e.visa)}${e.visaPage && !off('visa') ? ` See our <a href="${e.visaPage}">${e.visaName || (x.n === 'Dubai' ? 'UAE' : x.n)} visa guide</a>.` : ''}</li><li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
+    <ul>${e.dates ? `<li><b>Departures:</b> ${esc(e.dates)}</li>` : ''}<li><b>Best time to visit:</b> ${esc(e.best)}</li>${hw ? '' : `<li><b>Visa:</b> ${esc(e.visa)}${e.visaPage && !off('visa') ? ` See our <a href="${e.visaPage}">${e.visaName || (x.n === 'Dubai' ? 'UAE' : x.n)} visa guide</a>.` : ''}</li>`}<li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
     <h2>Frequently asked questions</h2>
     <div class="faq">${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div>
     <p style="font-size:14px;color:var(--muted);margin-top:24px">${x.cur === '€' ? 'Euro prices are for the land tour only. ' : ''}Prices are per person on twin sharing and change with travel dates and hotel availability. The final price is the one on your written quote. See <a href="pricing.html">Pricing</a> and <a href="refund.html">Cancellation &amp; Refund</a>.</p>
@@ -242,6 +249,7 @@ for (const x of P) {
 </div></section>
 `;
   const page = h.replace('<a href="packages.html">Packages</a></li>', '<a href="packages.html" aria-current="page">Packages</a></li>') + main + foot;
+  if (hw && VF.test(main.replace(/<[^>]+>/g, ' '))) throw new Error(`${file} still mentions a visa or flights: ${main.replace(/<[^>]+>/g, ' ').match(new RegExp('.{0,60}' + VF.source + '.{0,40}', 'i'))[0]}`);
   fs.writeFileSync(path.join(root, file), page);
 }
 

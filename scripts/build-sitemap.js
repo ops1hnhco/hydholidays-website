@@ -4,12 +4,13 @@
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const SITE = 'https://www.hydholidays.com/';
-const { paused, hiddenPost } = require('./services');
+const { paused, hiddenPost, hiddenPackages } = require('./services');
 // Visa pages stay on disk but are left out while visa services are paused (scripts/services.js).
 const skip = paused.includes('visa') ? /^(credits|disclaimer|privacy|terms|refund|shipping|visa(-[a-z]+)?)\.html$/ : /^(credits|disclaimer|privacy|terms|refund|shipping)\.html$/;
 const today = new Date().toISOString().slice(0, 10);
 
-const pages = fs.readdirSync(root).filter(f => f.endsWith('.html') && !skip.test(f))
+const hiddenPkgs = hiddenPackages(root);
+const pages = fs.readdirSync(root).filter(f => f.endsWith('.html') && !skip.test(f) && !hiddenPkgs.includes(f))
   .sort((a, b) => (b === 'index.html') - (a === 'index.html') || a.localeCompare(b));
 const blogDir = path.join(root, 'blog');
 const posts = fs.existsSync(blogDir) ? fs.readdirSync(blogDir).filter(f => f.endsWith('.html') && !hiddenPost(f)).sort().reverse().map(f => 'blog/' + f) : [];
