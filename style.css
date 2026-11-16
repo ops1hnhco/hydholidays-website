@@ -358,3 +358,4 @@ ul.check li::before{content:"✓";position:absolute;left:4px;color:var(--accent)
 [data-svc]{display:none!important} /* [paused] */
 .svc-alt{display:revert} /* [paused] */
 .svc,.revs{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))} /* [paused] fewer cards on the home page */
+.btn.svc-alt{display:inline-flex} /* [paused] */

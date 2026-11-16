@@ -38,7 +38,13 @@ const istDate = d => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0,
 const nice = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
 // Pages an article can point readers to for help (visa guides, packages).
-const sitePages = fs.readdirSync(ROOT).filter(f => /^(visa(-[a-z]+)?|[a-z]+-tour-package|packages|flights-hotels)\.html$/.test(f)).sort();
+// Paused services (scripts/services.js): their pages can't be linked and the articles mustn't offer them.
+const { paused } = require('../scripts/services');
+const sitePages = fs.readdirSync(ROOT).filter(f => /^(visa(-[a-z]+)?|[a-z]+-tour-package|packages|flights-hotels)\.html$/.test(f))
+  .filter(f => !(paused.includes('visa') && /^visa(-[a-z]+)?\.html$/.test(f))).sort();
+const PAUSED_NOTE = paused.length ? `
+
+We are not currently offering ${paused.map(s => ({ visa: 'visa assistance', flights: 'flight booking', insurance: 'travel insurance' })[s] || s).join(', ')} as separate services. You may report news about these topics, but never offer, suggest or ask readers to contact us for them.` : '';
 const pageTitle = f => fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<h1>(.*?)<\/h1>/)?.[1].replace(/<[^>]+>/g, '') || f;
 
 // ---- Research and writing ----
@@ -80,7 +86,7 @@ Article:
 - related: the one page on our website most useful to a reader of this article.
 - channel_message: an update for our WhatsApp Channel, at most 450 characters, starting with one emoji and a short hook line, then the key point in 1-2 sentences. Do not include a link; it is added after your text.
 
-${OFFER_GUIDE} For an offer, the category is Offers, sources is empty, the sections cover the trip, what is included, the dates and who it suits, and what_to_do explains how to book with us.`;
+${OFFER_GUIDE} For an offer, the category is Offers, sources is empty, the sections cover the trip, what is included, the dates and who it suits, and what_to_do explains how to book with us.${PAUSED_NOTE}`;
 
 const Article = pages => z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the article is confirmed in it'),
