@@ -29,6 +29,19 @@ to GitHub; only the enquiry function runs on Vercel (https://hydholidays-website
 `app.js` posts to that absolute URL. Every site that posts enquiries must be listed in
 `ALLOWED_ORIGINS` on Vercel.
 
+## Travel assistant
+`travel-assistant.html` is a chat page where Claude (Haiku 5.5) answers visitors' questions about our packages
+and latest Offers posts, helps plan trips, and, once a visitor gives a name and phone number and agrees, emails the
+enquiry with the chat to `MAIL_TO` (same Zoho settings as the enquiry form). A "Continue on WhatsApp" button opens a
+chat with +91 70750 40406 with the visitor's questions filled in.
+- The page (`travel-assistant.js`) posts to the Vercel function `api/agent.js`, like the enquiry form.
+- What it knows comes from the `P` list in `app.js` and the Offers posts in `blog/posts.json` (packages hidden while
+  services are paused are left out), so it updates on every deploy. `vercel.json` makes Vercel include those files.
+- Setup: add `ANTHROPIC_API_KEY` in Vercel → Project → Settings → Environment Variables (optional `AGENT_MODEL`),
+  then redeploy. Without the key the page says the assistant is not set up yet.
+- Limits: 20 visitor messages per chat, 40 messages per hour per visitor (best effort). Each message costs a fraction
+  of a rupee with Haiku. Links in replies are checked against real pages before they're shown.
+
 ## Social media agent
 A daily GitHub Actions job researches, writes, designs and posts travel content (package ideas, flight offers, travel news) to Facebook, Instagram, X and YouTube Shorts.
 Setup: `marketing/README.md`.
