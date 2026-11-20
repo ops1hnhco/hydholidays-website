@@ -14,7 +14,7 @@ on:
       kind:
         description: 'Kind of post (blank = today''s turn)'
         type: choice
-        options: ['', 'domestic package', 'international package', 'flight offer', 'travel news']
+        options: ['', 'domestic package', 'international package', 'travel news']
         default: ''
       brief:
         description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'

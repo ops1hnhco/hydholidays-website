@@ -35,42 +35,28 @@ and latest Offers posts, helps plan trips, and, once a visitor gives a name and 
 enquiry with the chat to `MAIL_TO` (same Zoho settings as the enquiry form). A "Continue on WhatsApp" button opens a
 chat with +91 70750 40406 with the visitor's questions filled in.
 - The page (`travel-assistant.js`) posts to the Vercel function `api/agent.js`, like the enquiry form.
-- What it knows comes from the `P` list in `app.js` and the Offers posts in `blog/posts.json` (packages hidden while
-  services are paused are left out), so it updates on every deploy. `vercel.json` makes Vercel include those files.
+- What it knows comes from the `P` list in `app.js` and the Offers posts in `blog/posts.json`, so it updates on
+  every deploy. `vercel.json` makes Vercel include those files.
 - Setup: add `ANTHROPIC_API_KEY` in Vercel → Project → Settings → Environment Variables (optional `AGENT_MODEL`),
   then redeploy. Without the key the page says the assistant is not set up yet.
 - Limits: 20 visitor messages per chat, 40 messages per hour per visitor (best effort). Each message costs a fraction
   of a rupee with Haiku. Links in replies are checked against real pages before they're shown.
 
 ## Social media agent
-A daily GitHub Actions job researches, writes, designs and posts travel content (package ideas, flight offers, travel news) to Facebook, Instagram, X and YouTube Shorts.
+A daily GitHub Actions job researches, writes, designs and posts travel content (package ideas, travel news) to Facebook, Instagram, X and YouTube Shorts.
 Setup: `marketing/README.md`.
 
 ## Package pages
-Each holiday package has its own page (`kashmir-tour-package.html`, `dubai-tour-package.html`, …) generated
+Each holiday package has its own page (`kashmir-tour-package.html`, `kerala-tour-package.html`, …) generated
 from the package list in `app.js` plus the copy in `scripts/build-package-pages.js`. After changing a price,
 itinerary or adding a package, run `node scripts/build-package-pages.js`; it rebuilds those pages and `sitemap.xml`.
 
-## Paused services
-Visa assistance, flight booking and travel insurance are hidden for now (not deleted). Packages that
-include a visa or flights in their price (Dubai, Vietnam, Bali) are unchanged.
-- **On the pages:** each visa, flight or insurance item is tagged `data-svc="visa|flights|insurance"`, and
-  `.svc-alt` holds the wording shown in its place. The rules marked `[paused]` at the end of `style.css` do the hiding.
-- **Package pages and sitemap:** `scripts/services.js` lists the paused services. Package pages say flights and
-  visas are not included, and the visa pages are left out of `sitemap.xml`.
-- **Visa pages:** the files stay in the repo; the Amplify build (`scripts/pause-pages.js`) publishes them as
-  redirects to `packages.html`.
-- **Every other mention of visas or flights** is hidden too: package pages leave out the visa/flights facts, FAQ
-  and inclusions, legal pages hide their visa and flight sections (later sections are renumbered), and the Dubai,
-  Bali and Vietnam packages (visa or flights in the price) are hidden from the lists and redirect to `packages.html`.
-- **Blog posts:** posts dated before `postsFrom` in `scripts/services.js` (all visa and flight news) are left off
-  `blog.html` and the sitemap, and the Amplify build publishes them as redirects to `blog.html`.
-- **Blog, social and WhatsApp agents (`marketing/`):** while paused they don't write about visas, flights, airports
-  or insurance, social posts skip the "flight offer" day, and airfare-only supplier offers are skipped.
-
-To bring everything back:
-1. Delete the rules marked `[paused]` at the end of `style.css`.
-2. Set `paused: []` in `scripts/services.js`.
-3. Run `node scripts/build-package-pages.js` and `(cd marketing && node blog.js --index)`, then commit and push.
-4. Page titles and descriptions on `index.html`, `flights-hotels.html`, `packages.html`, `faq.html` and `shipping.html` were reworded
-   without visa and flight wording; restore them from the commit "Pause visa, flight and insurance services".
+## Services we don't offer
+We don't offer visa assistance, flight booking or travel insurance, and the site doesn't mention them.
+- `scripts/build-package-pages.js` refuses to build a package page that mentions visas, flights or insurance.
+- The blog, social media and WhatsApp agents in `marketing/` are told never to write about them
+  (`NOT_OFFERED_NOTE` in `marketing/offer.js`), and airfare-only supplier offers are skipped.
+- The old visa pages, the Dubai, Bali and Vietnam packages, `flights-hotels.html` (now `hotels.html`) and the old
+  visa and flight blog posts were removed. The Amplify build (`scripts/retired-pages.js`) publishes their old
+  addresses as redirects to live pages, so old links and search results still work.
+- Everything removed is in the git history, in the commit before "Remove visa, flight and insurance services".

@@ -1,6 +1,6 @@
-// Daily travel and visa news blog for www.hydholidays.com.
+// Daily travel news blog for www.hydholidays.com.
 // Each day Claude researches one recent news item that matters to travellers from Hyderabad
-// (visa and entry rules, new flights and routes, airports, advisories), checks it against official
+// (advisories, destination news, festivals and events), checks it against official
 // sources or established news outlets, and writes a short article. The article is saved as
 // blog/<date>-<slug>.html, listed on blog.html and added to sitemap.xml; the workflow then commits
 // it to main, which publishes the site. It also writes a short WhatsApp Channel update to post by hand
@@ -9,7 +9,7 @@
 // whatsapp.js), it writes about that offer instead of researching the news.
 //
 //   node blog.js --dry-run              research and write, save nothing
-//   BRIEF="UAE visa changes" node blog.js   steer today's article
+//   BRIEF="Kerala monsoon season" node blog.js   steer today's article
 //   node blog.js --index                rebuild blog.html and the sitemap from blog/posts.json only
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
-import { NO_VISA_FLIGHTS, OFFER_GUIDE, PAUSED, PAUSED_NOTE, hiddenPost, offerBrief, readOffer } from './offer.js';
+import { NOT_OFFERED_NOTE, OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -30,39 +30,35 @@ const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const WHATSAPP = '+91 70750 40406';
 const CHANNEL = env('WHATSAPP_CHANNEL_URL', ''); // e.g. https://whatsapp.com/channel/...; blank = link to our chat
 const DRY_RUN = process.argv.includes('--dry-run');
-// Visa and flight categories are dropped while those services are paused (scripts/services.js).
-const CATEGORIES = ['Visa news', 'Flights & airports', 'Destinations', 'Travel advisory', 'Offers']
-  .filter(c => !(NO_VISA_FLIGHTS && /Visa|Flights/.test(c)));
+const CATEGORIES = ['Destinations', 'Travel advisory', 'Offers'];
 
 const loadPosts = () => (fs.existsSync(POSTS_FILE) ? JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8')) : []);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const istDate = d => new Date(d.getTime() + 5.5 * 3600e3).toISOString().slice(0, 10);
 const nice = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// Pages an article can point readers to for help (visa guides, packages).
-// Visa pages are left out while visa services are paused (scripts/services.js).
-const sitePages = fs.readdirSync(ROOT).filter(f => /^(visa(-[a-z]+)?|[a-z]+-tour-package|packages|flights-hotels)\.html$/.test(f))
-  .filter(f => !(PAUSED.includes('visa') && /^visa(-[a-z]+)?\.html$/.test(f))).sort();
+// Pages an article can point readers to for help (packages, hotels).
+const sitePages = fs.readdirSync(ROOT).filter(f => /^([a-z-]+-tour-package|packages|hotels)\.html$/.test(f)).sort();
 const pageTitle = f => fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<h1>(.*?)<\/h1>/)?.[1].replace(/<[^>]+>/g, '') || f;
 
 // ---- Research and writing ----
 
-const ABOUT = `Hyderabad Holidays Co. is a travel agency in KPHB, Hyderabad, India. It plans holidays in India and abroad${NO_VISA_FLIGHTS ? ' and books hotels and transfers' : ', books flights and hotels, and helps with visas'}. Its readers are mostly Indian travellers from Hyderabad, Telangana and Andhra Pradesh. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
+const ABOUT = `Hyderabad Holidays Co. is a travel agency in KPHB, Hyderabad, India. It plans holidays in India and abroad and books hotels and transfers. Its readers are mostly Indian travellers from Hyderabad, Telangana and Andhra Pradesh. Enquiries: WhatsApp ${WHATSAPP} or ${SITE}.`;
 
 const RESEARCH_SYSTEM = `You research the daily news article for the Hyderabad Holidays Co. blog. ${ABOUT}
 
 The article is published on the website without anyone checking it first, so accuracy matters more than anything.
 
 Choosing:
-- One recent news item (ideally from the last 7 days, never older than 3 weeks) that matters to Indian travellers, especially from Hyderabad: ${NO_VISA_FLIGHTS ? 'travel advisories, destination openings or closures, new attractions, festivals and events, entry fees at sights, and season or weather updates for popular holiday places' : 'visa and entry rule changes, new fees or arrival cards, new flights or routes from Hyderabad (HYD), airport changes, travel advisories, destination openings or closures'}.
+- One recent news item (ideally from the last 7 days, never older than 3 weeks) that matters to Indian travellers, especially from Hyderabad: travel advisories, destination openings or closures, new attractions, festivals and events, entry fees at sights, and season or weather updates for popular holiday places.
 - Do not repeat a story already covered in the recent articles you are given, unless there is a genuinely new development.
 
 Researching:
 - Use web search to find candidates, then open the pages with web fetch and read them. A headline or snippet alone does not confirm anything.
-- Prefer official sources (governments, embassies, VFS, airlines, airports, tourism boards) and established news outlets. Use at least two sources when you can.
+- Prefer official sources (governments, tourism boards, the attractions themselves) and established news outlets. Use at least two sources when you can.
 - Do not state anything as fact unless a page you read supports it. Leave out what you could not confirm.
 - If a story cannot be confirmed, choose a different one that can.
-${PAUSED_NOTE}
+${NOT_OFFERED_NOTE}
 
 Finish with a brief for the writer:
 STATUS: READY if every fact below is confirmed from a page you read; otherwise NOT READY, with the reason
@@ -73,7 +69,7 @@ CAUTIONS: anything readers must check themselves`;
 
 const WRITE_SYSTEM = `You write the daily news article for the Hyderabad Holidays Co. blog. ${ABOUT}
 
-You get a researched brief. If it is not marked READY, or a fact you need is unconfirmed, set ready to false; nothing will be published. Use only the facts in the brief. Never add prices, offers or claims of your own, and never imply a visa is guaranteed. Where rules change often, tell readers to check the latest before travelling.
+You get a researched brief. If it is not marked READY, or a fact you need is unconfirmed, set ready to false; nothing will be published. Use only the facts in the brief. Never add prices, offers or claims of your own. Where rules change often, tell readers to check the latest before travelling.
 
 Article:
 - title: at most 70 characters, specific and plain (what changed, for whom). No clickbait, no ALL CAPS.
@@ -85,7 +81,7 @@ Article:
 - related: the one page on our website most useful to a reader of this article.
 - channel_message: an update for our WhatsApp Channel, at most 450 characters, starting with one emoji and a short hook line, then the key point in 1-2 sentences. Do not include a link; it is added after your text.
 
-${OFFER_GUIDE} For an offer, the category is Offers, sources is empty, the sections cover the trip, what is included, the dates and who it suits, and what_to_do explains how to book with us.${PAUSED_NOTE}`;
+${OFFER_GUIDE} For an offer, the category is Offers, sources is empty, the sections cover the trip, what is included, the dates and who it suits, and what_to_do explains how to book with us.${NOT_OFFERED_NOTE}`;
 
 const Article = pages => z.object({
   ready: z.boolean().describe('true only if the brief is READY and every fact in the article is confirmed in it'),
@@ -189,7 +185,7 @@ function shell({ title, description, url, image, ld = [], inBlogDir }) {
 }
 
 const followLink = CHANNEL || `https://wa.me/917075040406?text=${encodeURIComponent('Hello Hyderabad Holidays Co., please add me to your travel updates.')}`;
-const followCard = `<div class="cta-card"><div><h3>Travel updates on WhatsApp</h3><p>${NO_VISA_FLIGHTS ? 'Travel news, holiday ideas' : 'Visa rule changes, new flights from Hyderabad'} and our latest offers, a few times a week.</p></div><div class="ctas"><a class="btn wa-go" href="${followLink}" target="_blank" rel="noopener">${CHANNEL ? 'Follow our WhatsApp Channel' : 'Get updates on WhatsApp'}</a></div></div>`;
+const followCard = `<div class="cta-card"><div><h3>Travel updates on WhatsApp</h3><p>Travel news, holiday ideas and our latest offers, a few times a week.</p></div><div class="ctas"><a class="btn wa-go" href="${followLink}" target="_blank" rel="noopener">${CHANNEL ? 'Follow our WhatsApp Channel' : 'Get updates on WhatsApp'}</a></div></div>`;
 
 function renderPost(a, date) {
   const file = `blog/${date}-${a.slug}.html`, url = SITE + file;
@@ -204,7 +200,7 @@ function renderPost(a, date) {
     ${body}
     <h2>What to do</h2><ul class="check">${a.what_to_do.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
     ${a.sources.length ? `<h2>Sources</h2><ul>${a.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener nofollow">${esc(s.title)}</a></li>`).join('')}</ul>` : ''}
-    <p style="font-size:14px;color:var(--muted)">Rules, fares and schedules change often; check the latest with the official source or with us before you travel. This article is general information, not legal advice.</p>
+    <p style="font-size:14px;color:var(--muted)">Rules, prices and schedules change often; check the latest with the official source or with us before you travel. This article is general information, not legal advice.</p>
     <div class="cta-card"><div><h3>Need help with this?</h3><p>Our team in KPHB can check your plan, documents and bookings. We reply within one working day.</p></div><div class="ctas"><a class="btn" href="${a.related}">${esc(pageTitle(a.related))}</a><a class="btn wa-go" href="https://wa.me/917075040406?text=${encodeURIComponent(`Hello Hyderabad Holidays Co., I read "${a.title}" on your blog and need help.`)}" target="_blank" rel="noopener">WhatsApp us</a></div></div>
     ${followCard}
 </article></div></section>
@@ -213,14 +209,12 @@ function renderPost(a, date) {
 }
 
 function renderIndex(all) {
-  const posts = all.filter(p => !hiddenPost(p.file)); // older visa and flight news is hidden while those services are paused
+  const posts = all;
   const list = posts.length
     ? `<div class="blog-list">${posts.map(p => `<a class="blog-item" href="${p.file}"><span class="meta">${nice(p.date)} · ${esc(p.category)}</span><h2>${esc(p.title)}</h2><p>${esc(p.description)}</p></a>`).join('')}</div>`
     : '<p class="notice">Our first update is on its way. Check back tomorrow.</p>';
-  const html = shell(NO_VISA_FLIGHTS
-    ? { title: 'Travel News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Travel advisories, destination news and holiday ideas for travellers from Hyderabad, checked against official sources.', url: SITE + 'blog.html' }
-    : { title: 'Travel & Visa News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Daily updates on visa rules, new flights from Hyderabad, airports and travel advisories, checked against official sources.', url: SITE + 'blog.html' })
-    + `<main id="top"><div class="pagehead"><div class="wrap"><div class="crumb"><a href="./">Home</a> / Blog</div>${NO_VISA_FLIGHTS ? '<h1>Travel news</h1><p>Travel advisories, destination news and holiday ideas, checked against official sources and explained for travellers from Hyderabad.</p>' : '<h1>Travel &amp; visa news</h1><p>Visa rule changes, new flights from Hyderabad, airport updates and travel advisories, checked against official sources and explained for travellers from Hyderabad.</p>'}</div></div>
+  const html = shell({ title: 'Travel News for Hyderabad Travellers · Blog · Hyderabad Holidays Co.', description: 'Travel advisories, destination news and holiday ideas for travellers from Hyderabad, checked against official sources.', url: SITE + 'blog.html' })
+    + `<main id="top"><div class="pagehead"><div class="wrap"><div class="crumb"><a href="./">Home</a> / Blog</div><h1>Travel news</h1><p>Travel advisories, destination news and holiday ideas, checked against official sources and explained for travellers from Hyderabad.</p></div></div>
 <section><div class="wrap">${list}<div style="max-width:900px">${followCard}</div></div></section>
 ` + FOOT;
   fs.writeFileSync(path.join(ROOT, 'blog.html'), html);

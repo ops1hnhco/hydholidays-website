@@ -26,7 +26,7 @@ import makeWASocket, {
 import pino from 'pino';
 import qrcode from 'qrcode-terminal';
 import { z } from 'zod';
-import { OFFER_KINDS, PAUSED } from './offer.js';
+import { OFFER_KINDS } from './offer.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -156,7 +156,8 @@ Choosing:
 Writing each offer:
 - Use only what the messages say. Never guess prices, dates or inclusions; leave a field empty if it is not given.
 - Never include supplier or agency names, people's names, phone numbers, emails, links, or agent commission and B2B terms in any field except for_owner. Customers will see everything else.
-${PAUSED.includes('flights') ? '- Skip offers that are only airfares or flight tickets: we are not selling flights for now.\n- kind: domestic package for trips within India; international package for trips abroad.' : '- kind: flight offer for airfares only; domestic package for trips within India; international package for trips abroad.'}
+- Skip offers that are only airfares or flight tickets: we do not sell flights.
+- kind: domestic package for trips within India; international package for trips abroad.
 - title: short and specific, like "Bali 5N/6D with private pool villa".
 - supplier_price: the price in Indian rupees as given, per person where stated (the lowest clearly stated one, with its basis, e.g. "per person, twin sharing", in price_basis). If the price is in another currency or unclear, use null and explain in for_owner.
 - notes: anything else customers need (hotel category, minimum travellers, blackout dates).

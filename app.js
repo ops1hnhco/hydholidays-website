@@ -5,11 +5,8 @@
 
   const P=[
    {r:"in",n:"Kashmir",c:"SXR",d:"6N/7D",p:"16,900",t:["Gulmarg","Pahalgam","Shikara"],g:"linear-gradient(160deg,#5b8db8,#203a55)",i:["Arrive Srinagar, Dal Lake shikara ride","Gulmarg day trip, Gondola (optional)","Transfer to Pahalgam via saffron fields","Aru & Betaab valleys","Sonamarg day excursion","Srinagar Mughal gardens","Departure from Srinagar"]},
-   {r:"intl",n:"Dubai",c:"DXB",d:"5N/6D",p:"34,500",t:["Visa","Desert safari","Burj Khalifa"],g:"linear-gradient(160deg,#d9a35b,#7a4a1f)",i:["Arrive Dubai, Marina dhow dinner","City tour and Burj Khalifa 124th floor","Desert safari with BBQ dinner","Abu Dhabi day trip","Free day for shopping","Departure"]},
    {r:"in",n:"Kerala",c:"COK",d:"5N/6D",p:"15,400",t:["Munnar","Alleppey houseboat"],g:"linear-gradient(160deg,#4f9a6b,#1d4a35)",i:["Arrive Kochi, transfer to Munnar","Tea gardens and Eravikulam","Transfer to Thekkady, spice plantation","Alleppey houseboat overnight","Kochi Fort and Marine Drive","Departure from Kochi"]},
-   {r:"intl",n:"Bali",c:"DPS",d:"6N/7D",p:"62,900",t:["Ubud","Nusa Penida","Flights"],g:"linear-gradient(160deg,#3ca39b,#14504d)",i:["Arrive Bali, transfer to Ubud","Ubud swing, rice terraces, monkey forest","Kintamani volcano view","Transfer to Kuta, Uluwatu sunset","Nusa Penida island tour","Free day at the beach","Departure"]},
    {r:"in",n:"Andaman",c:"IXZ",d:"5N/6D",p:"32,800",t:["Havelock","Neil Island","Ferries"],g:"linear-gradient(160deg,#2f8fc0,#0f3f5c)",i:["Arrive Port Blair, Cellular Jail light show","Ferry to Havelock, Radhanagar beach","Elephant beach snorkelling","Ferry to Neil Island","Return to Port Blair","Departure"]},
-   {r:"intl",n:"Vietnam",c:"SGN",d:"7N/8D",p:"38,500",t:["Hanoi","Ha Long Bay","e-Visa"],g:"linear-gradient(160deg,#b5534a,#4e1f1c)",i:["Arrive Hanoi, Old Quarter walk","Hanoi city tour","Ha Long Bay overnight cruise","Return to Hanoi, fly to Da Nang","Ba Na Hills and Golden Bridge","Hoi An ancient town","Fly to Ho Chi Minh City, Cu Chi tunnels","Departure"]},
    {r:"in",n:"Goa",c:"GOI",d:"3N/4D",p:"13,900",t:["North & South Goa","Cruise dinner"],g:"linear-gradient(160deg,#e08a4c,#7a3a18)",i:["Arrive Goa, evening at Baga","North Goa forts and beaches","South Goa churches, Mandovi cruise","Departure"]},
    {r:"intl",n:"Thailand",c:"BKK",d:"5N/6D",p:"15,900",t:["Pattaya","Bangkok","Coral Island"],g:"linear-gradient(160deg,#c3478a,#55173b)",i:["Arrive Bangkok, transfer to Pattaya","Coral Island speedboat tour","Alcazar show, transfer to Bangkok","Bangkok temple and city tour","Safari World and Marine Park","Departure"]},
    {r:"in",n:"Himachal",c:"IXC",d:"6N/7D",p:"9,600",t:["Shimla","Manali","Solang"],g:"linear-gradient(160deg,#6f7fb3,#272f55)",i:["Arrive Chandigarh, drive to Shimla","Kufri and Mall Road","Drive to Manali via Kullu","Solang valley","Atal Tunnel and Sissu","Manali local sightseeing","Return to Chandigarh, depart"]},
@@ -39,13 +36,10 @@
   // Optional fields: s = page name (default: name in lower case), img = photo in images/ (default: same; false = no photo).
   const slug=x=>(x.s||x.n.toLowerCase())+'-tour-package.html', photo=x=>x.img===false?'':`url(images/${x.img||x.n.toLowerCase()}.jpg),`;
 
-  const paused=s=>{const e=document.createElement('i');e.dataset.svc=s;document.body.appendChild(e);const off=getComputedStyle(e).display==='none';e.remove();return off};
-  // Packages with a visa or flights in the price are hidden while those services are paused (scripts/services.js).
-  const hidePkg=x=>x.t.some(t=>/visa|flights/i.test(t))&&(paused('visa')||paused('flights'));
   const box=$('#pkgs');
   if(box){
     const lim=+box.dataset.limit||99, detail=box.hasAttribute('data-detail');
-    const draw=f=>{box.innerHTML=P.filter(x=>!hidePkg(x)&&(f==='all'||x.r===f)).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
+    const draw=f=>{box.innerHTML=P.filter(x=>f==='all'||x.r===f).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
     draw('all');
     $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw(b.dataset.f)}));
   }
@@ -66,9 +60,6 @@
   const sendMail=data=>fetch(MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
     .then(r=>r.json().then(j=>r.ok&&j.ok===true)).catch(()=>false)
     .then(ok=>{if(ok)track('generate_lead',{form_name:data.service||data.enquiry||'enquiry',page_path:location.pathname});return ok});
-  // True while a service (visa, flights, insurance) is paused by the [data-svc] rule in style.css.
-  // Some mobile browsers ignore display:none on <option>, so paused choices are removed instead.
-  $$('option[data-svc]').forEach(o=>{if(paused(o.dataset.svc))o.remove()});
   // ---- Enquiry popup ----
   const dlg=document.createElement('dialog');
   dlg.className='enq-dlg';dlg.setAttribute('aria-labelledby','dq-title');
@@ -82,7 +73,7 @@
       <label class="full">Email (optional)<input id="dq-email" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <label class="dq-trip">Travel month<input id="dq-month" type="month" value="2026-12"></label>
       <label class="dq-trip">Travellers<select id="dq-pax"><option>2 adults</option><option>2 adults, 1 child</option><option>2 adults, 2 children</option><option>1 adult</option><option>Group (6+)</option></select></label>
-      <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="${paused('flights')?'Hotel category, special requests':'Hotel category, flights from Hyderabad, special requests'}"></textarea></label>
+      <label class="full">Anything else?<textarea id="dq-msg" rows="3" placeholder="Hotel category, special requests"></textarea></label>
       <p class="dq-err full" id="dq-err" hidden>Please enter your name and a phone number with at least 10 digits. Check the email address if you added one.</p>
       <button class="btn full" type="submit" id="dq-send">Send enquiry</button>
       <p class="dq-note full">We reply within one working day. Prefer to call? <a href="tel:+917075040406"><b>+91 70750 40406</b></a></p>
@@ -99,8 +90,8 @@
   let cur=null,curName='';
   const openEnq=(name,o)=>{o=o||{};cur=o.title?null:(P.find(x=>x.n===name)||null);curName=name||'';
     q('dq-title').textContent=cur?cur.n+' '+cur.d:(curName||'Plan my trip');
-    q('dq-sub').textContent=cur?'From '+(cur.cur||'₹')+cur.p+' per person · '+cur.t.join(' · '):(curName?'We will check your documents and get back to you.':'Tell us where you want to go.');
-    dlg.querySelector('.dq-head .eyebrow').textContent=cur?'Package enquiry':(curName?'Visa enquiry':'Enquiry');
+    q('dq-sub').textContent=cur?'From '+(cur.cur||'₹')+cur.p+' per person · '+cur.t.join(' · '):'Tell us where you want to go.';
+    dlg.querySelector('.dq-head .eyebrow').textContent=cur?'Package enquiry':'Enquiry';
     if(o.title){q('dq-title').textContent=o.title;q('dq-sub').textContent=o.sub||'';dlg.querySelector('.dq-head .eyebrow').textContent=o.eyebrow||'Enquiry'}
     q('dq-msg').value=o.msg||'';
     dlg.querySelectorAll('.dq-trip').forEach(l=>l.hidden=!!o.title);
@@ -130,36 +121,22 @@
     const day=k=>{const d=new Date();d.setDate(d.getDate()+k);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
     const mon=k=>{const d=new Date();d.setMonth(d.getMonth()+k);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
     const opt=a=>a.map(x=>`<option>${x}</option>`).join('');
-    const VC=['UAE (Dubai)','United States','Thailand','Singapore','United Kingdom','Canada','Malaysia','Australia','Vietnam','Schengen (Europe)','Other country'];
     const F={
       h:{label:'Holiday',fields:[
         {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
-        {id:'to',l:'Going to',t:'text',ph:'Bali, Kerala, Dubai…',req:1},
+        {id:'to',l:'Going to',t:'text',ph:'Kerala, Bali, Europe…',req:1},
         {id:'month',l:'Travel month',t:'month',v:mon(2),min:mon(0)},
         {id:'pax',l:'Travellers',t:'select',o:['2 adults','2 adults, 1 child','2 adults, 2 children','1 adult','Group (6+)']}]},
-      f:{label:'Flight',fields:[
-        {id:'trip',l:'Trip',t:'select',o:['Return','One way']},
-        {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
-        {id:'to',l:'To',t:'text',ph:'City or airport',req:1},
-        {id:'dep',l:'Depart',t:'date',v:day(14),min:day(0)},
-        {id:'ret',l:'Return',t:'date',v:day(21),min:day(0)},
-        {id:'pax',l:'Passengers & class',t:'select',o:['1 adult · Economy','2 adults · Economy','2 adults, 1 child · Economy','1 adult · Business','2 adults · Business','Group (10+)']}]},
       o:{label:'Hotel',fields:[
-        {id:'city',l:'City or hotel',t:'text',ph:'Dubai, Goa, Kochi…',req:1},
+        {id:'city',l:'City or hotel',t:'text',ph:'Goa, Kochi, Singapore…',req:1},
         {id:'in',l:'Check-in',t:'date',v:day(14),min:day(0)},
         {id:'out',l:'Check-out',t:'date',v:day(17),min:day(1)},
-        {id:'rooms',l:'Rooms & guests',t:'select',o:['1 room · 2 adults','1 room · 2 adults, 1 child','2 rooms · 4 adults','1 room · 1 adult','3+ rooms']}]},
-      v:{label:'Visa',fields:[
-        {id:'country',l:'Country',t:'select',o:VC},
-        {id:'type',l:'Visa type',t:'select',o:['Tourist','Business','Visiting family / friends','Transit']},
-        {id:'date',l:'Travel date',t:'date',v:day(30),min:day(0)},
-        {id:'appl',l:'Applicants',t:'select',o:['1 applicant','2 applicants','3 applicants','4 applicants','5+ applicants']}]}
+        {id:'rooms',l:'Rooms & guests',t:'select',o:['1 room · 2 adults','1 room · 2 adults, 1 child','2 rooms · 4 adults','1 room · 1 adult','3+ rooms']}]}
     };
     let tab='h';
     const box=$('#qs-fields');
     const render=()=>{const cfg=F[tab];qs.style.setProperty('--n',cfg.fields.length);
       box.innerHTML=cfg.fields.map(x=>`<label>${x.l}${x.t==='select'?`<select id="qs-${tab}-${x.id}">${opt(x.o)}</select>`:`<input id="qs-${tab}-${x.id}" type="${x.t}"${x.v?` value="${x.v}"`:''}${x.ph?` placeholder="${x.ph}"`:''}${x.min?` min="${x.min}"`:''}>`}</label>`).join('');
-      if(tab==='f'){const t=$('#qs-f-trip'),r=$('#qs-f-ret');const sync=()=>{r.disabled=t.value==='One way';r.closest('label').classList.toggle('off',r.disabled)};t.addEventListener('change',sync);sync()}
     };
     $$('[data-t]').forEach(b=>b.addEventListener('click',()=>{$$('[data-t]').forEach(o=>o.setAttribute('aria-pressed',o===b));tab=b.dataset.t;render()}));
     render();
@@ -169,8 +146,8 @@
       if(need){const el=$(`#qs-${tab}-${need.id}`);el.focus();el.setAttribute('aria-invalid','true');el.addEventListener('input',()=>el.removeAttribute('aria-invalid'),{once:true});return}
       const lines=cfg.fields.filter(x=>{const el=$(`#qs-${tab}-${x.id}`);return !el.disabled&&el.value.trim()}).map(x=>`${x.l}: ${fmt($(`#qs-${tab}-${x.id}`).value.trim())}`);
       const v=id=>fmt($(`#qs-${tab}-${id}`).value.trim());
-      const title={h:()=>v('to')+' holiday',f:()=>v('from').replace(/\s*\(.*\)/,'')+' → '+v('to'),o:()=>'Hotel in '+v('city'),v:()=>v('country')+' visa'}[tab]();
-      const sub={h:()=>v('month')+' · '+v('pax'),f:()=>v('trip')+' · '+v('dep')+(v('trip')==='Return'?' – '+v('ret'):'')+' · '+v('pax'),o:()=>v('in')+' – '+v('out')+' · '+v('rooms'),v:()=>v('type')+' · '+v('appl')+' · travelling '+v('date')}[tab]();
+      const title={h:()=>v('to')+' holiday',o:()=>'Hotel in '+v('city')}[tab]();
+      const sub={h:()=>v('month')+' · '+v('pax'),o:()=>v('in')+' – '+v('out')+' · '+v('rooms')}[tab]();
       openEnq(title,{title,sub,eyebrow:cfg.label+' enquiry',msg:lines.join('\n')})});
   }
 

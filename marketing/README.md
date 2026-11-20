@@ -3,16 +3,15 @@
 Every day at 19:30 IST, when Indian audiences are most active on social media,
 `.github/workflows/social-post.yml` runs `agent.js`. It does not use the website's content. Each day it:
 
-1. **Takes the next kind of post** in this four-day cycle:
+1. **Takes the next kind of post** in this three-day cycle:
 
    | Kind | What it posts |
    |---|---|
    | Domestic package | A trip idea in India that's in season: length, route, highlights. No price; readers ask for a quote |
-   | Flight offer | A current airline sale (from Hyderabad where possible), quoted exactly from the airline, with the booking window. If no genuine offer is found, it posts travel news instead |
-   | International package | A trip idea abroad that's in season, with the visa situation for Indians when confirmed. No price |
-   | Travel news | Recent news that affects Indian travellers: visa and entry rules, new routes, airports, advisories |
+   | International package | A trip idea abroad that's in season: length, route, highlights. No price |
+   | Travel news | Recent news that affects Indian travellers: advisories, destination news, festivals and events |
 
-2. **Researches on the web.** Claude searches official sources (airlines, governments, tourism boards)
+2. **Researches on the web.** Claude searches official sources (governments, tourism boards)
    and established news outlets, and only keeps facts it could confirm. It also checks the list of
    recent posts so it doesn't repeat a destination or story within 30 days.
 3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only, each
@@ -107,13 +106,13 @@ default, so the run researches, writes and designs the post without posting. Rea
 download the **post** artifact to see the image. Untick it to post now.
 
 - **Kind** picks the type of post instead of today's turn.
-- **Brief** steers it, for example "Kashmir for Christmas" or "Any new flights from Hyderabad?".
+- **Brief** steers it, for example "Kashmir for Christmas" or "New attractions in Kerala".
   The agent still only posts facts it can confirm.
 - **Platforms** posts to only some platforms, for example `facebook,instagram` after those failed.
   It researches and writes a new post, so it won't be identical to the one the others got.
 
 Locally: `cd marketing && npm install`, set the same variables, then `npm run dry-run`. The image,
-the video (`video.mp4`) and the full post are saved in `marketing/out/`. `KIND="flight offer"` and `BRIEF="..."` work the same way.
+the video (`video.mp4`) and the full post are saved in `marketing/out/`. `KIND="travel news"` and `BRIEF="..."` work the same way.
 
 ## Notes
 - **Memory.** The list of past posts is kept in the GitHub Actions cache (the last 120). Only runs that
@@ -144,8 +143,8 @@ some followers and engagement. What helps most:
 # Daily blog
 
 Every morning at 08:00 IST, `.github/workflows/daily-blog.yml` runs `blog.js`. Claude picks one recent
-news item that matters to travellers from Hyderabad (visa and entry rules, new flights and routes,
-airports, advisories), confirms it on official sources or established news sites, and writes a
+news item that matters to travellers from Hyderabad (advisories, destination news,
+festivals and events), confirms it on official sources or established news sites, and writes a
 350–600 word article with sources and a link to the most relevant page on our site. The article is
 saved as `blog/<date>-<slug>.html`, listed on `blog.html`, added to the sitemap and committed to
 `main`, which publishes it. If the facts can't be confirmed, nothing is published and the run fails

@@ -2,19 +2,13 @@
 // OFFER environment variable (JSON). It replaces their web research: the owner has checked these
 // facts, so the brief is marked READY and the writers use them as given.
 
-import { createRequire } from 'node:module';
+// We don't offer visa assistance, flight booking or travel insurance, so our posts and articles never
+// mention them, and airfare-only offers are not posted.
+export const NOT_OFFERED_NOTE = `
 
-// Services paused on the website (../scripts/services.js). While visa or flight services are paused, our
-// posts and articles stay off visas and flights altogether, and airfare-only offers are not posted.
-const services = createRequire(import.meta.url)('../scripts/services.js');
-export const PAUSED = services.paused;
-export const hiddenPost = services.hiddenPost;
-export const NO_VISA_FLIGHTS = PAUSED.includes('visa') || PAUSED.includes('flights');
-export const PAUSED_NOTE = NO_VISA_FLIGHTS ? `
+We do not offer visa assistance, flight booking or travel insurance, and our posts stay off those topics. Do not write about visas, entry permits, flights, airlines, airfares, airports or travel insurance, and do not mention them at all, except to list an inclusion exactly as given in one of our own approved package offers. Never offer to book flights, file visas or sell insurance.`;
 
-For now we do not offer visa assistance, flight booking or travel insurance, and our posts stay off those topics. Do not write about visas, entry permits, flights, airlines, airfares, airports or travel insurance, and do not mention them at all, except to list an inclusion exactly as given in one of our own approved package offers. Never offer to book flights, file visas or sell insurance.` : '';
-
-export const OFFER_KINDS = ['domestic package', 'international package', ...(PAUSED.includes('flights') ? [] : ['flight offer'])];
+export const OFFER_KINDS = ['domestic package', 'international package'];
 
 export function readOffer(json) {
   if (!json) return null;
@@ -43,7 +37,7 @@ ${list(o.inclusions)}
 - Does not include:
 ${list(o.exclusions)}
 - Notes: ${o.notes || 'none'}
-CAUTIONS: prices and availability can change until booked${NO_VISA_FLIGHTS ? '' : "; visa, if needed, is the traveller's own responsibility unless included above"}`;
+CAUTIONS: prices and availability can change until booked`;
 }
 
 export const OFFER_GUIDE = `If the brief says it is our own offer, approved by the owner, it has no web sources and that is expected: treat every fact in it as confirmed. Present it as a package or fare we can book now, use the price exactly as given with its basis and "subject to availability" (or no price if none is given), give the travel dates and the book-by date, and invite readers to WhatsApp us to book. Never mention suppliers, other agencies or where the offer came from, and never add inclusions, prices or dates that are not in the brief.`;

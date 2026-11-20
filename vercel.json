@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/agent.js": {
-      "includeFiles": "{app.js,blog/posts.json,scripts/services.js}",
+      "includeFiles": "{app.js,blog/posts.json}",
       "maxDuration": 60
     }
   }

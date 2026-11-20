@@ -1,4 +1,4 @@
-# Researches and writes one travel/visa news article a day for www.hydholidays.com/blog.html,
+# Researches and writes one travel news article a day for www.hydholidays.com/blog.html,
 # commits it to main (which publishes the site), and leaves a WhatsApp Channel update to post by hand
 # in the run's Summary. Setup: marketing/README.md ("Daily blog").
 name: Daily blog
@@ -13,7 +13,7 @@ on:
         type: boolean
         default: true
       brief:
-        description: 'Optional brief, e.g. "New Schengen visa fees"'
+        description: 'Optional brief, e.g. "Kerala monsoon season"'
         required: false
       offer:
         description: 'Approved offer as JSON (set by marketing/whatsapp.js); replaces research'

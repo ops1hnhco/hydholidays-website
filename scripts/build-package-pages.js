@@ -1,7 +1,7 @@
 // Builds one static page per holiday package (e.g. kashmir-tour-package.html) so each trip
 // can rank in search and serve as a Google Ads landing page.
 // Package names, prices, tags and itineraries come from the P list in app.js; the extra copy
-// (intro, best time, visa notes) lives below. Re-run after changing either:
+// (intro, best time, inclusions) lives below. Re-run after changing either:
 //   node scripts/build-package-pages.js
 // It also rewrites sitemap.xml (scripts/build-sitemap.js). Header and footer are copied from packages.html.
 const fs = require('fs'), path = require('path');
@@ -14,29 +14,15 @@ const P = Function('return ' + app.match(/const P=(\[[\s\S]*?\]);/)[1])();
 const slug = x => (x.s || x.n.toLowerCase()) + '-tour-package.html';
 const imgPath = x => x.img === false ? null : `images/${x.img || x.n.toLowerCase()}.jpg`;
 const photo = x => imgPath(x) ? `url(${imgPath(x)}),` : '';
-// While visa or flight services are paused (scripts/services.js), pages say they're not included
-// instead of offering to arrange them. Packages with a visa or flights in the price keep them.
-const { paused, hideWords, bundled } = require('./services');
-const off = s => paused.includes(s);
-// While visa or flights are paused, the other package pages leave out every mention of visas and flights
-// (the facts box, FAQ, inclusions and "Good to know"). Packages with them in the price are hidden instead
-// (scripts/pause-pages.js), so their pages are built as normal.
-const HIDE = hideWords();
-const VF = /\b(e-?visas?|visas?|flights?)\b/i;
+// We don't offer visas, flights or travel insurance, so the pages never mention them (checked below).
+const OFF = /\b(e-?visas?|visas?|flights?|insurance|airfares?|airlines?|schengen)\b/i;
 
-// Optional per-package overrides in EXTRA: incl / excl (lists replacing the defaults), visaFact
-// (the short "Visa" fact), visaName (visa guide link text), dates (departures), indicative (the
-// day-by-day plan is an outline, not the supplier's).
+// Optional per-package overrides in EXTRA: incl / excl (lists replacing the defaults), dates
+// (departures), indicative (the day-by-day plan is an outline, not the supplier's).
 const EUROPE = {
   place: 'Europe',
   best: 'December brings Christmas markets and winter scenery; days are short and cold, so pack warm. January is quieter and often cheaper.',
-  visa: off('visa')
-    ? 'Indians need a Schengen visa; one visa covers every country on this route. The visa is not included in this package. Apply at least 6–8 weeks before travel.'
-    : 'Indians need a Schengen visa; one visa covers every country on this route. We prepare the file and book your VFS appointment. Apply at least 6–8 weeks before travel.',
-  visaPage: 'visa-schengen.html', visaName: 'Schengen', visaFact: 'Schengen visa needed', indicative: true,
-  excl: off('visa')
-    ? ['Flights from Hyderabad', 'Schengen visa fee and travel insurance']
-    : ['Flights from Hyderabad (quoted separately)', 'Schengen visa fee and travel insurance (we can arrange both)'],
+  indicative: true,
 };
 const europeIncl = n => [`${n} nights' hotel stay`, 'Travel between the cities on the route', 'On-ground support during the tour'];
 // Europamundo escorted coach tours: priced in euros (land only), weekly departures all season.
@@ -47,56 +33,32 @@ const emIncl = n => [`${n} nights' hotel stay`, 'Coach travel between cities wit
 const EXTRA = {
   Kashmir: { title: 'Kashmir tour package from Hyderabad',
     intro: 'Houseboats on Dal Lake, the meadows of Gulmarg and Pahalgam, and a day in Sonamarg, planned as one trip from Hyderabad with a private vehicle throughout.',
-    best: 'March to October for gardens and meadows; December to February for snow in Gulmarg.',
-    visa: 'No visa or permit is needed for Indian citizens. Carry a government photo ID.' },
-  Dubai: { title: 'Dubai tour package from Hyderabad',
-    intro: 'The Burj Khalifa, a desert safari with BBQ dinner, a dhow cruise and a day in Abu Dhabi, with your UAE tourist visa filed by our visa desk.',
-    best: 'November to March, when days are warm rather than hot.',
-    visa: 'Indians need a UAE visa. This package includes the 30-day tourist e-visa.', visaPage: 'visa-uae.html' },
+    best: 'March to October for gardens and meadows; December to February for snow in Gulmarg.' },
   Kerala: { title: 'Kerala tour package from Hyderabad',
     intro: 'Tea estates in Munnar, spice gardens in Thekkady and a night on an Alleppey houseboat, finishing with Fort Kochi.',
-    best: 'September to March. The June–August monsoon is quieter and greener, good for Ayurveda stays.',
-    visa: 'No visa needed for Indian citizens.' },
-  Bali: { title: 'Bali tour package from Hyderabad',
-    intro: 'Rice terraces and temples around Ubud, the Kintamani volcano, an Uluwatu sunset and a day on Nusa Penida, with flights included.',
-    best: 'April to October, the dry season.',
-    visa: 'Indian passport holders can get an Indonesian visa on arrival or e-VOA. We confirm the current rule and fee before you travel.' },
+    best: 'September to March. The June–August monsoon is quieter and greener, good for Ayurveda stays.' },
   Andaman: { title: 'Andaman tour package from Hyderabad',
     intro: 'Port Blair and the Cellular Jail, Radhanagar beach on Havelock, snorkelling at Elephant beach and a day on Neil Island, with inter-island ferries booked for you.',
-    best: 'October to May, when the sea is calm for ferries and snorkelling.',
-    visa: 'No visa needed for Indian citizens. Carry a government photo ID for ferries and hotels.' },
-  Vietnam: { title: 'Vietnam tour package from Hyderabad',
-    intro: 'Hanoi’s Old Quarter, an overnight cruise on Ha Long Bay, the Golden Bridge at Ba Na Hills, Hoi An and Ho Chi Minh City, north to south in eight days.',
-    best: 'February to April suits the whole north-to-south route.',
-    visa: 'Indians need a Vietnam e-visa. This package includes it.', visaPage: 'visa-vietnam.html' },
+    best: 'October to May, when the sea is calm for ferries and snorkelling.' },
   Goa: { title: 'Goa tour package from Hyderabad',
     intro: 'A short break covering the beaches and forts of North Goa, the churches of Old Goa and an evening cruise on the Mandovi.',
-    best: 'November to February. Monsoon (June–September) is lush but many beach shacks close.',
-    visa: 'No visa needed for Indian citizens.' },
+    best: 'November to February. Monsoon (June–September) is lush but many beach shacks close.' },
   Thailand: { title: 'Thailand tour package from Hyderabad',
     intro: 'Pattaya with a Coral Island speedboat trip and the Alcazar show, then Bangkok’s temples, Safari World and Marine Park.',
-    best: 'November to March, the cool and dry season.',
-    visa: 'Indians can visit Thailand visa-free for 30 days. Fill in the TDAC arrival card before you land.', visaPage: 'visa-thailand.html' },
+    best: 'November to March, the cool and dry season.' },
   Himachal: { title: 'Shimla Manali tour package from Hyderabad',
     intro: 'Shimla’s Mall Road and Kufri, then Manali with Solang valley, the Atal Tunnel and Sissu, starting and ending at Chandigarh.',
-    best: 'March to June for sightseeing; December to February for snow (the Atal Tunnel can close after heavy snowfall).',
-    visa: 'No visa needed for Indian citizens.' },
+    best: 'March to June for sightseeing; December to February for snow (the Atal Tunnel can close after heavy snowfall).' },
   Singapore: { title: 'Singapore tour package from Hyderabad',
     intro: 'Universal Studios, Sentosa with the cable car and the domes at Gardens by the Bay, plus a city tour and private airport transfers, over four nights.',
     best: 'All year. February to April is usually the driest; November to January is the wetter monsoon season.',
-    visa: off('visa')
-      ? 'Indians need a Singapore visa, filed through an authorised agent; it is not included in this package. Fill in the SG Arrival Card before you land.'
-      : 'Indians need a Singapore visa, filed through an authorised agent such as us. Fill in the SG Arrival Card before you land.',
-    visaPage: 'visa-singapore.html', visaName: 'Singapore', visaFact: 'e-Visa needed', indicative: true,
-    incl: ["4 nights' hotel stay with daily breakfast", 'Airport pickup and drop', 'Singapore city tour', 'Universal Studios Singapore tickets with transfers', 'Sentosa with one-way cable car', 'Gardens by the Bay: Flower Dome and Cloud Forest'],
-    excl: off('visa') ? ['Flights from Hyderabad', 'Singapore visa fee'] : ['Flights from Hyderabad (quoted separately)', 'Singapore visa fee (we can file it for you)'] },
+    indicative: true,
+    incl: ["4 nights' hotel stay with daily breakfast", 'Airport pickup and drop', 'Singapore city tour', 'Universal Studios Singapore tickets with transfers', 'Sentosa with one-way cable car', 'Gardens by the Bay: Flower Dome and Cloud Forest'] },
   'Bali Pool Villa': { place: 'Bali', title: 'Bali pool villa honeymoon package from Hyderabad',
     intro: 'Four nights in a deluxe hotel and two in a private pool villa with a floating breakfast, plus water sports, an ATV ride, the Gates of Heaven, Ubud and the Kecak dance at Uluwatu.',
     best: 'April to October, the dry season.',
-    visa: 'Indian passport holders can get an Indonesian visa on arrival or e-VOA. We confirm the current rule and fee before you travel.',
-    visaFact: 'On arrival / e-VOA', indicative: true,
-    incl: ["4 nights in a deluxe hotel and 2 nights in a private pool villa, daily breakfast", 'One floating breakfast at the villa', 'Jet ski, parasailing and banana boat', 'Tandem ATV ride and Aloha swing', 'Gates of Heaven, Besakih, Tirta Gangga, Ubud, Kintamani, Tegenungan, Uluwatu, GWK and Kecak dance', 'Airport, inter-hotel and sightseeing transfers by private vehicle'],
-    excl: [off('flights') ? 'Flights from Hyderabad' : 'Flights from Hyderabad (quoted separately)', 'Indonesia visa on arrival fee'] },
+    indicative: true,
+    incl: ["4 nights in a deluxe hotel and 2 nights in a private pool villa, daily breakfast", 'One floating breakfast at the villa', 'Jet ski, parasailing and banana boat', 'Tandem ATV ride and Aloha swing', 'Gates of Heaven, Besakih, Tirta Gangga, Ubud, Kintamani, Tegenungan, Uluwatu, GWK and Kecak dance', 'Airport, inter-hotel and sightseeing transfers by private vehicle'] },
   'Europe Highlights': { ...EUROPE, title: 'Europe tour package from Hyderabad: Paris to Budapest',
     intro: 'Paris, Munich, Salzburg, Ljubljana and Budapest in eight days, a winter route through five countries with travel between the cities arranged for you.',
     dates: '16–23 Dec 2026 from ₹86,499; 10–17 Jan 2027 from ₹91,500 per adult.', incl: europeIncl(7) },
@@ -104,7 +66,7 @@ const EXTRA = {
     intro: 'Munich, Salzburg, Ljubljana and Budapest in a week: Bavarian beer halls, Mozart’s hometown, Slovenia’s riverside capital and the Danube at Budapest.',
     dates: '13–19 Jan 2027 from ₹1,02,499; 4–10 Dec 2026 from ₹1,09,000 per adult.', incl: europeIncl(6) },
   'Europe Grand Tour': { ...EUROPE, title: 'Europe grand tour package from Hyderabad: Paris, Zurich to Budapest',
-    intro: 'Ten days from Paris through Switzerland, Munich, Salzburg and Ljubljana to Budapest, covering six countries on one Schengen visa.',
+    intro: 'Ten days from Paris through Switzerland, Munich, Salzburg and Ljubljana to Budapest, across six countries.',
     dates: '10–19 Jan 2027 from ₹1,19,500; 1–10 Dec 2026 from ₹1,26,000 per adult.', incl: europeIncl(9) },
   'Paris Swiss Italy': { ...EUROPE, title: 'Paris, Switzerland and Italy tour package from Hyderabad',
     intro: 'Paris, Zurich, Milan, Venice and Rome in ten days: the classic first trip to Europe, ending with the Vatican and the Colosseum.',
@@ -156,8 +118,8 @@ const EXTRA = {
     intro: 'Four nights on the Danube aboard the MS Arena, sailing from Vienna to Budapest and Bratislava and back, timed for the Christmas markets. Meals on board are included from the first dinner to the last breakfast.',
     best: 'Late November and December, when the Christmas markets are open.',
     dates: 'Sails from Vienna on Mondays, Wednesdays and Saturdays in the Christmas market season. Operated by Europamundo as "Danube Christmas Markets - Superior - MS ARENA"; we confirm open dates, cabin deck and the final price with your quote.',
-    incl: ['4 nights in an outside cabin on the MS Arena', 'Full board from dinner on day 1 to breakfast on day 5', 'Arrival transfer to the ship', 'Port taxes and travel assistance insurance', 'Porterage when boarding and leaving the ship'],
-    excl: [off('flights') ? 'Flights from Hyderabad' : 'Flights from Hyderabad (quoted separately)', 'Schengen visa fee', 'Optional guided tours in Vienna, Budapest and Bratislava'] },
+    incl: ['4 nights in an outside cabin on the MS Arena', 'Full board from dinner on day 1 to breakfast on day 5', 'Arrival transfer to the ship', 'Port taxes', 'Porterage when boarding and leaving the ship'],
+    excl: ['Optional guided tours in Vienna, Budapest and Bratislava'] },
 };
 
 const tpl = fs.readFileSync(path.join(root, 'packages.html'), 'utf8');
@@ -174,21 +136,16 @@ for (const x of P) {
   const e = EXTRA[x.n];
   if (!e) throw new Error('Add EXTRA copy for ' + x.n);
   const file = slug(x), url = SITE + file, intl = x.r === 'intl';
-  const flights = x.t.includes('Flights'), visaIncl = x.t.some(t => /visa/i.test(t)) && intl;
   const title = `${e.title.replace(/^./, c => c.toUpperCase())} · ${x.d} from ${money(x)}`;
-  const noFlights = !flights && off('flights');
-  const hw = HIDE && !bundled(x), keep = s => !(hw && VF.test(s));
-  const intro = hw ? e.intro.replace(/, covering six countries on one Schengen visa\./, ' across six countries.') : e.intro;
-  const desc = `${x.d} ${x.n} package from Hyderabad from ${money(x)} per person: ${x.i.slice(0, 3).join(', ').toLowerCase()} and more. Day-by-day itinerary, hotels in writing${flights ? ', flights included' : noFlights ? '' : ', flights from HYD on request'}.`;
+  const intro = e.intro;
+  const desc = `${x.d} ${x.n} package from Hyderabad from ${money(x)} per person: ${x.i.slice(0, 3).join(', ').toLowerCase()} and more. Day-by-day itinerary, hotels in writing.`;
   const place = e.place || x.n;
   const faqs = [
-    [`How much does a ${x.n} trip from Hyderabad cost?`, `This ${x.d} package starts at ${money(x)} per person on twin sharing. The final price depends on your dates${flights ? ', hotel category and flight availability' : noFlights ? ' and hotel category' : ', hotel category and whether you add flights from Hyderabad'}; we send a written quote before you pay.`],
-    [`Are flights from Hyderabad included?`, flights ? 'Yes, return flights are included in this package. We share the flight timings with your quote.' : noFlights ? `No. This is a land package: you book your own flights to ${place}, and everything from arrival is arranged for you.` : 'Not in the starting price. We quote flights from Hyderabad (HYD) separately, so you can see the fare and pick timings.'],
+    [`How much does a ${x.n} trip from Hyderabad cost?`, `This ${x.d} package starts at ${money(x)} per person on twin sharing. The final price depends on your dates and hotel category; we send a written quote before you pay.`],
     [`What is the best time to visit ${place}?`, e.best],
-    [`Do I need a visa for ${place}?`, e.visa],
     ['Can I change the itinerary?', 'Yes. You can add or drop nights, upgrade hotels, or travel as a private family or group departure. Tell us your dates and we rebuild the plan.'],
-  ].filter(([q, a]) => keep(q) && keep(a));
-  const related = P.filter(o => o !== x && o.r === x.r && !(HIDE && bundled(o))).slice(0, 3);
+  ];
+  const related = P.filter(o => o !== x && o.r === x.r).slice(0, 3);
 
   let h = head
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} · Hyderabad Holidays Co.</title>`)
@@ -217,13 +174,13 @@ for (const x of P) {
     <span class="eyebrow" style="display:block;margin-top:14px">${x.d} · ${intl ? 'International' : 'India'} · from Hyderabad</span>
     <h1>${esc(e.title.replace(/^./, c => c.toUpperCase()))}</h1>
     <p>${esc(intro)}</p>
-    <div class="pk-price"><div><small>from, per person</small><b>${money(x)}</b></div><ul class="pk-tags">${x.t.filter(keep).map(t => `<li>${t}</li>`).join('')}</ul></div>
+    <div class="pk-price"><div><small>from, per person</small><b>${money(x)}</b></div><ul class="pk-tags">${x.t.map(t => `<li>${t}</li>`).join('')}</ul></div>
     <div class="ctas" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px"><button type="button" class="btn" data-enq="${x.n}">Get a free quote</button><a class="btn wa-go" href="${wa}" target="_blank" rel="noopener">WhatsApp us</a></div>
   </div>
   <div class="pk-img" style="background-image:${photo(x)}${x.g}" role="img" aria-label="${x.n}"></div>
 </div></div>
 <section style="padding-block:40px 0"><div class="wrap">
-  <div class="vfacts"><div class="vf"><small>Duration</small><b>${x.d.replace('N/', ' nights / ').replace('D', ' days')}</b></div><div class="vf"><small>Starting price</small><b>${money(x)} per person</b></div><div class="vf"><small>Best time</small><b>${esc(e.best.split(/[;.]/)[0])}</b></div>${hw ? '' : `<div class="vf"><small>${intl ? 'Visa' : 'Flights'}</small><b>${intl ? (e.visaFact || (visaIncl ? 'Included' : x.n === 'Thailand' ? 'Visa-free for Indians' : 'On arrival')) : noFlights ? 'Not included' : 'Quoted from HYD'}</b></div>`}</div>
+  <div class="vfacts"><div class="vf"><small>Duration</small><b>${x.d.replace('N/', ' nights / ').replace('D', ' days')}</b></div><div class="vf"><small>Starting price</small><b>${money(x)} per person</b></div><div class="vf"><small>Best time</small><b>${esc(e.best.split(/[;.]/)[0])}</b></div></div>
 </div></section>
 <section><div class="wrap legal-wrap pk-body">
   <article class="prose" style="max-width:none">
@@ -232,11 +189,11 @@ for (const x of P) {
     <ol class="pk-days">${x.i.map((d, i) => `<li><b>Day ${i + 1}</b><span>${esc(d)}</span></li>`).join('')}</ol>
     <h2>What's included</h2>
     <div class="two">
-      <div class="card"><h3 style="margin-top:0">Included</h3><ul class="check">${e.incl ? e.incl.filter(keep).map(i => `<li>${esc(i)}</li>`).join('') : `<li>${nights(x.d)} nights' hotel stay on twin sharing with daily breakfast</li><li>Airport transfers and sightseeing by private vehicle</li><li>Entry tickets listed in the itinerary</li>${flights ? '<li>Return flights</li>' : ''}${visaIncl ? '<li>Tourist visa fee and travel insurance</li>' : ''}`}</ul></div>
-      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || [flights ? 'Visa on arrival fee' : noFlights ? 'Flights from Hyderabad' : 'Flights from Hyderabad (quoted separately)']).filter(keep).map(i => `<li>${esc(i)}</li>`).join('')}<li>Lunch, dinner and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Included</h3><ul class="check">${e.incl ? e.incl.map(i => `<li>${esc(i)}</li>`).join('') : `<li>${nights(x.d)} nights' hotel stay on twin sharing with daily breakfast</li><li>Airport transfers and sightseeing by private vehicle</li><li>Entry tickets listed in the itinerary</li>`}</ul></div>
+      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || []).map(i => `<li>${esc(i)}</li>`).join('')}<li>Lunch, dinner and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
     </div>
     <h2>Good to know</h2>
-    <ul>${e.dates ? `<li><b>Departures:</b> ${esc(e.dates)}</li>` : ''}<li><b>Best time to visit:</b> ${esc(e.best)}</li>${hw ? '' : `<li><b>Visa:</b> ${esc(e.visa)}${e.visaPage && !off('visa') ? ` See our <a href="${e.visaPage}">${e.visaName || (x.n === 'Dubai' ? 'UAE' : x.n)} visa guide</a>.` : ''}</li>`}<li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
+    <ul>${e.dates ? `<li><b>Departures:</b> ${esc(e.dates)}</li>` : ''}<li><b>Best time to visit:</b> ${esc(e.best)}</li><li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
     <h2>Frequently asked questions</h2>
     <div class="faq">${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div>
     <p style="font-size:14px;color:var(--muted);margin-top:24px">${x.cur === '€' ? 'Euro prices are for the land tour only. ' : ''}Prices are per person on twin sharing and change with travel dates and hotel availability. The final price is the one on your written quote. See <a href="pricing.html">Pricing</a> and <a href="refund.html">Cancellation &amp; Refund</a>.</p>
@@ -249,7 +206,8 @@ for (const x of P) {
 </div></section>
 `;
   const page = h.replace('<a href="packages.html">Packages</a></li>', '<a href="packages.html" aria-current="page">Packages</a></li>') + main + foot;
-  if (hw && VF.test(main.replace(/<[^>]+>/g, ' '))) throw new Error(`${file} still mentions a visa or flights: ${main.replace(/<[^>]+>/g, ' ').match(new RegExp('.{0,60}' + VF.source + '.{0,40}', 'i'))[0]}`);
+  const text = page.replace(/<[^>]+>/g, ' ');
+  if (OFF.test(text)) throw new Error(`${file} mentions a service we don't offer: ${text.match(new RegExp('.{0,60}' + OFF.source + '.{0,40}', 'i'))[0]}`);
   fs.writeFileSync(path.join(root, file), page);
 }
 
