@@ -358,3 +358,10 @@ ul.check li::before{content:"✓";position:absolute;left:4px;color:var(--accent)
 @media (max-width:600px){.chat-log,.chat-suggest,.chat-form,.chat-foot{padding-left:14px;padding-right:14px}.chat .msg{max-width:92%}}
 
 .svc,.revs{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+
+.slabs{width:100%;max-width:420px;border-collapse:collapse;margin:8px 0 8px;font-size:15px}
+.slabs th,.slabs td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+.slabs th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.slabs td:last-child{font-weight:600}
+.pk-days-img li{padding-bottom:26px}
+.pk-days-img img{width:100%;max-width:520px;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin:0 0 10px;display:block}

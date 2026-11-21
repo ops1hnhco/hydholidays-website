@@ -34,6 +34,16 @@ const EXTRA = {
   Kashmir: { title: 'Kashmir tour package from Hyderabad',
     intro: 'Houseboats on Dal Lake, the meadows of Gulmarg and Pahalgam, and a day in Sonamarg, planned as one trip from Hyderabad with a private vehicle throughout.',
     best: 'March to October for gardens and meadows; December to February for snow in Gulmarg.' },
+  'Kashmir Getaway': { place: 'Kashmir', title: 'Kashmir tour package from Hyderabad: Srinagar and Pahalgam',
+    intro: 'A five-day Kashmir trip with three nights in Srinagar and one in Pahalgam, day trips to Sonamarg and Gulmarg, 3-star deluxe hotels, and breakfast and dinner every day.',
+    best: 'March to October for gardens and meadows; December to February for snow in Gulmarg.',
+    dinner: true,
+    incl: ['4 nights in 3-star deluxe hotels: 3 in Srinagar, 1 in Pahalgam', 'Daily breakfast and dinner', 'Pickup and drop at Srinagar airport, railway station or bus stand'],
+    hotels: 'Srinagar: Sideeq Palace, Grand Fortune, Belviour, MoonStone De Luxury, Sennin Evin, Grand Alden, Rozan Jai or similar. Pahalgam: Arabian Nights, Falcon Heights, A S Resorts, Indus Resort, The Classic Crown, Classic Estate, Ababeel Heights, Ahmed Villa, Home 2, The Peace Villa or similar.',
+    slabs: [[2, '16,000'], [4, '12,000'], [6, '11,499'], [8, '11,000'], [10, '10,750'], [12, '10,550'], [14, '10,200'], [16, '10,050']],
+    days: ['kashmir-srinagar', 'kashmir-sonamarg', 'kashmir-pahalgam', 'kashmir-gulmarg', 'kashmir'],
+    dates: 'Valid until 31 March 2027, except blackout dates.',
+    notes: ['Pickup and drop from Jammu instead of Srinagar costs extra for the whole tour: ₹8,000 by sedan, ₹13,000 by Innova, ₹18,000 by tempo traveller.'] },
   Kerala: { title: 'Kerala tour package from Hyderabad',
     intro: 'Tea estates in Munnar, spice gardens in Thekkady and a night on an Alleppey houseboat, finishing with Fort Kochi.',
     best: 'September to March. The June–August monsoon is quieter and greener, good for Ayurveda stays.' },
@@ -141,7 +151,7 @@ for (const x of P) {
   const desc = `${x.d} ${x.n} package from Hyderabad from ${money(x)} per person: ${x.i.slice(0, 3).join(', ').toLowerCase()} and more. Day-by-day itinerary, hotels in writing.`;
   const place = e.place || x.n;
   const faqs = [
-    [`How much does a ${x.n} trip from Hyderabad cost?`, `This ${x.d} package starts at ${money(x)} per person on twin sharing. The final price depends on your dates and hotel category; we send a written quote before you pay.`],
+    [`How much does a ${x.n} trip from Hyderabad cost?`, e.slabs ? `The per-person price depends on group size: ${(e.cur || '₹') + e.slabs[0][1]} each for ${e.slabs[0][0]} travellers, down to ${money(x)} each for a group of ${e.slabs[e.slabs.length - 1][0]} or more. We send a written quote before you pay.` : `This ${x.d} package starts at ${money(x)} per person on twin sharing. The final price depends on your dates and hotel category; we send a written quote before you pay.`],
     [`What is the best time to visit ${place}?`, e.best],
     ['Can I change the itinerary?', 'Yes. You can add or drop nights, upgrade hotels, or travel as a private family or group departure. Tell us your dates and we rebuild the plan.'],
   ];
@@ -186,17 +196,17 @@ for (const x of P) {
   <article class="prose" style="max-width:none">
     <h2 id="itinerary" style="margin-top:0">Day-by-day itinerary</h2>
     ${e.indicative ? '<p style="color:var(--muted);margin:-4px 0 16px">An outline of the route. The exact day-by-day plan and hotel names are confirmed in your written quote.</p>' : ''}
-    <ol class="pk-days">${x.i.map((d, i) => `<li><b>Day ${i + 1}</b><span>${esc(d)}</span></li>`).join('')}</ol>
-    <h2>What's included</h2>
+    <ol class="pk-days${e.days ? ' pk-days-img' : ''}">${x.i.map((d, i) => `<li>${e.days && e.days[i] ? `<img src="images/${e.days[i]}.jpg" alt="${esc(d)}" width="800" height="450" loading="lazy">` : ''}<b>Day ${i + 1}</b><span>${esc(d)}</span></li>`).join('')}</ol>
+    ${e.slabs ? `<h2>Price by group size</h2><table class="slabs"><thead><tr><th>Travellers</th><th>Price per person</th></tr></thead><tbody>${e.slabs.map(([n, pr]) => `<tr><td>${n}${n === e.slabs[e.slabs.length - 1][0] ? '+' : ''} people</td><td>₹${pr}</td></tr>`).join('')}</tbody></table>` : ''}${e.hotels ? `<h2>Hotels</h2><p>${esc(e.hotels)}</p>` : ''}<h2>What's included</h2>
     <div class="two">
       <div class="card"><h3 style="margin-top:0">Included</h3><ul class="check">${e.incl ? e.incl.map(i => `<li>${esc(i)}</li>`).join('') : `<li>${nights(x.d)} nights' hotel stay on twin sharing with daily breakfast</li><li>Airport transfers and sightseeing by private vehicle</li><li>Entry tickets listed in the itinerary</li>`}</ul></div>
-      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || []).map(i => `<li>${esc(i)}</li>`).join('')}<li>Lunch, dinner and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
+      <div class="card"><h3 style="margin-top:0">Not included</h3><ul>${(e.excl || []).map(i => `<li>${esc(i)}</li>`).join('')}<li>${e.dinner ? 'Lunch' : 'Lunch, dinner'} and personal expenses</li><li>Optional activities, tips and porterage</li><li>GST${intl ? ' and TCS' : ''} as applicable</li></ul></div>
     </div>
     <h2>Good to know</h2>
-    <ul>${e.dates ? `<li><b>Departures:</b> ${esc(e.dates)}</li>` : ''}<li><b>Best time to visit:</b> ${esc(e.best)}</li><li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
+    <ul>${e.dates ? `<li><b>${e.slabs ? 'Validity' : 'Departures'}:</b> ${esc(e.dates)}</li>` : ''}${(e.notes || []).map(n => `<li>${esc(n)}</li>`).join('')}<li><b>Best time to visit:</b> ${esc(e.best)}</li><li><b>Customise it:</b> add nights, upgrade hotels or make it a private trip for your family or group.</li></ul>
     <h2>Frequently asked questions</h2>
     <div class="faq">${faqs.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('')}</div>
-    <p style="font-size:14px;color:var(--muted);margin-top:24px">${x.cur === '€' ? 'Euro prices are for the land tour only. ' : ''}Prices are per person on twin sharing and change with travel dates and hotel availability. The final price is the one on your written quote. See <a href="pricing.html">Pricing</a> and <a href="refund.html">Cancellation &amp; Refund</a>.</p>
+    <p style="font-size:14px;color:var(--muted);margin-top:24px">${x.cur === '€' ? 'Euro prices are for the land tour only. ' : ''}Prices are per person${e.slabs ? ', for the group size shown,' : ' on twin sharing'} and change with travel dates and hotel availability. The final price is the one on your written quote. See <a href="pricing.html">Pricing</a> and <a href="refund.html">Cancellation &amp; Refund</a>.</p>
   </article>
   <aside class="pk-side"><div class="card"><small>${x.n} · ${x.d}</small><b>${money(x)}</b><span>per person, from</span><button type="button" class="btn" data-enq="${x.n}">Get a free quote</button><a class="btn ghost" href="tel:+917075040406">Call +91 70750 40406</a><p>We reply within one working day.</p></div></aside>
 </div></section>
