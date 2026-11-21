@@ -10,7 +10,7 @@
    {r:"in",n:"Goa",c:"GOI",d:"3N/4D",p:"13,900",t:["North & South Goa","Cruise dinner"],g:"linear-gradient(160deg,#e08a4c,#7a3a18)",i:["Arrive Goa, evening at Baga","North Goa forts and beaches","South Goa churches, Mandovi cruise","Departure"]},
    {r:"intl",n:"Thailand",c:"BKK",d:"5N/6D",p:"15,900",t:["Pattaya","Bangkok","Coral Island"],g:"linear-gradient(160deg,#c3478a,#55173b)",i:["Arrive Bangkok, transfer to Pattaya","Coral Island speedboat tour","Alcazar show, transfer to Bangkok","Bangkok temple and city tour","Safari World and Marine Park","Departure"]},
    {r:"in",n:"Himachal",c:"IXC",d:"6N/7D",p:"9,600",t:["Shimla","Manali","Solang"],g:"linear-gradient(160deg,#6f7fb3,#272f55)",i:["Arrive Chandigarh, drive to Shimla","Kufri and Mall Road","Drive to Manali via Kullu","Solang valley","Atal Tunnel and Sissu","Manali local sightseeing","Return to Chandigarh, depart"]},
-   {r:"in",n:"Kashmir Getaway",s:"kashmir-4n5d",img:"kashmir",c:"SXR",d:"4N/5D",p:"10,050",t:["Srinagar","Sonamarg","Pahalgam","Gulmarg"],g:"linear-gradient(160deg,#5b8db8,#203a55)",i:["Arrive Srinagar, transfer to hotel, Srinagar local sightseeing","Sonamarg day trip from Srinagar","Drive to Pahalgam, overnight in Pahalgam","Gulmarg day trip, then back to Srinagar for the night","Departure from Srinagar"]},
+   {r:"in",n:"Kashmir Getaway",s:"kashmir-4n5d",img:"kashmir-gulmarg",c:"SXR",d:"4N/5D",p:"10,050",t:["Srinagar","Sonamarg","Pahalgam","Gulmarg"],g:"linear-gradient(160deg,#5b8db8,#203a55)",i:["Arrive Srinagar, transfer to hotel, Srinagar local sightseeing","Sonamarg day trip from Srinagar","Drive to Pahalgam, overnight in Pahalgam","Gulmarg day trip, then back to Srinagar for the night","Departure from Srinagar"]},
    {r:"intl",n:"Singapore",c:"SIN",d:"4N/5D",p:"47,499",t:["Universal Studios","Sentosa","Gardens by the Bay"],g:"linear-gradient(160deg,#d94f5c,#5a1a24)",i:["Arrive Singapore, private transfer to hotel","Singapore city tour, evening at Gardens by the Bay (Flower Dome, Cloud Forest)","Universal Studios Singapore","Sentosa Island with one-way cable car","Departure"]},
    {r:"intl",n:"Bali Pool Villa",s:"bali-pool-villa",img:"bali",c:"DPS",d:"6N/7D",p:"33,499",t:["Private pool villa","Floating breakfast","Water sports"],g:"linear-gradient(160deg,#3ca39b,#14504d)",i:["Arrive Bali, private transfer to hotel","Water sports: jet ski, parasailing, banana boat","Tandem ATV ride and Aloha swing","Gates of Heaven, Besakih temple and Tirta Gangga","Ubud, Kintamani volcano view and Tegenungan waterfall; check in to private pool villa","Floating breakfast; Uluwatu temple, GWK and Kecak dance at sunset","Departure"]},
    {r:"intl",n:"Europe Highlights",s:"europe-highlights",img:"europe-highlights",c:"CDG",d:"7N/8D",p:"86,499",t:["Paris","Salzburg","Budapest","Dec & Jan dates"],g:"linear-gradient(160deg,#4b5d9b,#1b2244)",i:["Arrive Paris","Paris sightseeing","Travel to Munich","Salzburg","Ljubljana","Travel to Budapest","Budapest sightseeing","Departure from Budapest"]},
@@ -40,9 +40,30 @@
   const box=$('#pkgs');
   if(box){
     const lim=+box.dataset.limit||99, detail=box.hasAttribute('data-detail');
-    const draw=f=>{box.innerHTML=P.filter(x=>f==='all'||x.r===f).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
-    draw('all');
-    $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o===b));draw(b.dataset.f)}));
+    const draw=(f,list)=>{box.innerHTML=(list||P.filter(x=>f==='all'||x.r===f)).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
+    // Search from the home page lands here as packages.html?r=in|intl&q=Kashmir
+    const sp=new URLSearchParams(location.search), sr=sp.get('r'), sq=(sp.get('q')||'').trim();
+    const setTab=f=>$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o.dataset.f===f));
+    const note=document.createElement('div');note.className='search-note';box.before(note);note.hidden=true;
+    if(sq&&detail){
+      const k=sq.toLowerCase().replace(/\(.*?\)/g,' ').split(/[^a-z]+/).filter(w=>w.length>2&&!['and','the','tour','trip'].includes(w));
+      const text=x=>[x.n,x.s||'',...x.t,...x.i].join(' ').toLowerCase();
+      const hit=x=>k.includes('europe')?(x.r==='intl'&&!/thailand|singapore|bali/i.test(x.n)):k.some(w=>text(x).includes(w));
+      const pool=P.filter(x=>!sr||x.r===sr), found=pool.filter(hit), place=sq.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      const reg=sr==='in'?'India':sr==='intl'?'international':'';
+      if(found.length){
+        note.innerHTML=`<p><b>${found.length} package${found.length>1?'s':''} for ${place}</b> · <a href="packages.html">Show all packages</a></p>`;
+        draw('all',found);
+      } else {
+        note.innerHTML=`<div class="card"><p style="margin:0 0 12px"><b>We don’t have a ready package for ${place} yet.</b> We can plan a custom trip with hotels and sightseeing for your dates.</p><button type="button" class="btn" data-enq="${place} holiday">Get a custom quote</button></div>${reg?`<p style="margin-top:20px">Other ${reg} packages you may like:</p>`:''}`;
+        draw(sr==='in'||sr==='intl'?sr:'all');
+      }
+      note.hidden=false;setTab(sr==='in'||sr==='intl'?sr:'all');
+      const h=$('.pagehead h1');if(h)h.textContent=`${sq} holiday packages`;
+    } else {
+      draw(sr==='in'||sr==='intl'?sr:'all');setTab(sr==='in'||sr==='intl'?sr:'all');
+    }
+    $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{setTab(b.dataset.f);note.hidden=true;draw(b.dataset.f)}));
   }
 
   const WA='https://wa.me/917075040406?text=';
@@ -100,6 +121,8 @@
     q('dq-art').hidden=!cur;q('dq-err').hidden=true;show(true);
     dlg.showModal();setTimeout(()=>q('dq-name').focus(),30)};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-enq]');if(b){e.preventDefault();openEnq(b.dataset.enq)}});
+  {const sp=new URLSearchParams(location.search);if(/^\d{4}-\d{2}$/.test(sp.get('m')||''))q('dq-month').value=sp.get('m');
+   const pax=sp.get('pax');if(pax&&[...q('dq-pax').options].some(o=>o.text===pax))q('dq-pax').value=pax;}
   q('dq-close').addEventListener('click',()=>dlg.close());
   q('dq-back').addEventListener('click',()=>{if(q('dq-fail').hidden)dlg.close();else show(true)});
   dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
@@ -144,14 +167,12 @@
     $$('[data-t]').forEach(b=>b.addEventListener('click',()=>{$$('[data-t]').forEach(o=>o.setAttribute('aria-pressed',o===b));tab=b.dataset.t;render()}));
     render();
     const fmt=v=>{if(/^\d{4}-\d{2}-\d{2}$/.test(v)){const d=new Date(v+'T00:00');return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}if(/^\d{4}-\d{2}$/.test(v)){const d=new Date(v+'-01T00:00');return d.toLocaleDateString('en-IN',{month:'long',year:'numeric'})}return v};
-    qs.addEventListener('submit',e=>{e.preventDefault();const cfg=F[tab];
-      const need=cfg.fields.find(x=>x.req&&!$(`#qs-${tab}-${x.id}`).value.trim());
-      if(need){const el=$(`#qs-${tab}-${need.id}`);el.focus();el.setAttribute('aria-invalid','true');el.addEventListener('input',()=>el.removeAttribute('aria-invalid'),{once:true});return}
-      const lines=cfg.fields.filter(x=>{const el=$(`#qs-${tab}-${x.id}`);return !el.disabled&&el.value.trim()}).map(x=>`${x.l}: ${fmt($(`#qs-${tab}-${x.id}`).value.trim())}`);
-      const v=id=>fmt($(`#qs-${tab}-${id}`).value.trim());
-      const title={d:()=>v('to')+' holiday',i:()=>v('to')+' holiday'}[tab]();
-      const sub={d:()=>v('month')+' · '+v('pax'),i:()=>v('month')+' · '+v('pax')}[tab]();
-      openEnq(title,{title,sub,eyebrow:cfg.label+' enquiry',msg:lines.join('\n')})});
+    qs.addEventListener('submit',e=>{e.preventDefault();
+      const el=$(`#qs-${tab}-to`), to=el.value.trim();
+      if(!to||to==='__other'){el.focus();el.setAttribute('aria-invalid','true');el.addEventListener(el.tagName==='SELECT'?'change':'input',()=>el.removeAttribute('aria-invalid'),{once:true});return}
+      const u=new URLSearchParams({r:tab==='d'?'in':'intl',q:to,m:$(`#qs-${tab}-month`).value,pax:$(`#qs-${tab}-pax`).value});
+      track('search',{search_term:to,page_path:location.pathname});
+      location.href='packages.html?'+u.toString()});
   }
 
   const f=$('#enq');
