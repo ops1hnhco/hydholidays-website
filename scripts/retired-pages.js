@@ -10,6 +10,7 @@ const TO = {
     'visa-singapore.html', 'visa-thailand.html', 'visa-uae.html', 'visa-uk.html', 'visa-usa.html', 'visa-vietnam.html',
     'dubai-tour-package.html', 'bali-tour-package.html', 'vietnam-tour-package.html'],
   'hotels.html': ['flights-hotels.html'],
+  'goa-4n5d-tour-package.html': ['goa-tour-package.html'],
   'blog.html': ['blog/2026-10-31-china-visa-hyderabad-apply-embassy-new-delhi.html',
     'blog/2026-11-04-mea-advisory-indians-france-italy-protests.html',
     'blog/2026-11-05-digi-yatra-international-trial-hyderabad-airport.html',
@@ -18,7 +19,7 @@ const TO = {
     'blog/2026-11-11-hyderabad-airport-runway-09r-cat-iii-fog.html',
     'blog/2026-11-13-saudi-flight-suspensions-extended-hyderabad.html'],
 };
-const TEXT = { 'packages.html': 'See our holiday packages', 'hotels.html': 'See our hotel bookings', 'blog.html': 'See our latest travel news' };
+const TEXT = { 'goa-4n5d-tour-package.html': 'See our Goa packages', 'packages.html': 'See our holiday packages', 'hotels.html': 'See our hotel bookings', 'blog.html': 'See our latest travel news' };
 
 const page = to => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
