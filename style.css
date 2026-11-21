@@ -188,7 +188,8 @@ mark.fill{background:#fff1c2;color:#5a4300;padding:0 4px;border-radius:4px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px}
 details.itin{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 18px;margin-top:10px}
 details.itin summary{cursor:pointer;font-weight:600;padding:12px 0}
-details.itin ol{margin:0 0 14px;padding-left:20px;color:var(--muted)}
+details.itin ol{margin:0 0 14px;padding-left:20px;color:var(--muted);display:block}
+.pkg details.itin li{background:none;color:var(--muted);font-weight:400;font-size:14px;padding:0;border-radius:0;margin:0 0 6px;display:list-item}
 .faq details{border-bottom:1px solid var(--line);padding:14px 0}
 .faq summary{cursor:pointer;font-weight:600;font-size:17px}
 .faq details p{margin-top:10px;color:var(--muted)}
@@ -373,3 +374,8 @@ ul.check li::before{content:"✓";position:absolute;left:4px;color:var(--accent)
 .pk-sec{margin:40px 0 20px}
 .tabs a{border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:8px 14px;font:500 14px var(--body);text-decoration:none}
 .tabs a:hover{color:var(--ink);border-color:var(--ink)}
+.dur{display:flex;gap:6px;flex-wrap:wrap}
+.dur button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:5px 12px;font:600 13px var(--body);cursor:pointer}
+.dur button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.dur button:hover{border-color:var(--ink);color:var(--ink)}
+.dur button[aria-pressed="true"]:hover{color:var(--bg)}
