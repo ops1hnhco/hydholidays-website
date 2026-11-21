@@ -60,6 +60,11 @@
     }
   }
 
+  // Back-to-top arrow: shows after scrolling down
+  const top=$('.mbar .totop');
+  if(top){const t=()=>top.classList.toggle('show',scrollY>500);addEventListener('scroll',t,{passive:true});t();
+    top.addEventListener('click',e=>{e.preventDefault();scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})})}
+
   const WA='https://wa.me/917075040406?text=';
   // Floating WhatsApp buttons open with a message naming the page, so the team knows what the visitor was reading.
   const h1=$('h1');
