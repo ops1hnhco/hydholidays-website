@@ -37,33 +37,27 @@
   // Optional fields: s = page name (default: name in lower case), img = photo in images/ (default: same; false = no photo).
   const slug=x=>(x.s||x.n.toLowerCase())+'-tour-package.html', photo=x=>x.img===false?'':`url(images/${x.img||x.n.toLowerCase()}.jpg),`;
 
+  const card=(x,detail)=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`;
+  const fill=(el,list)=>{const d=el.hasAttribute('data-detail'),lim=+el.dataset.limit||99;el.innerHTML=list.slice(0,lim).map(x=>card(x,d)).join('')};
   const box=$('#pkgs');
-  if(box){
-    const lim=+box.dataset.limit||99, detail=box.hasAttribute('data-detail');
-    const draw=(f,list)=>{box.innerHTML=(list||P.filter(x=>f==='all'||x.r===f)).slice(0,lim).map(x=>`<article class="pkg"><a class="art" href="${slug(x)}" aria-hidden="true" tabindex="-1" style="background-image:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.55)),${photo(x)}${x.g}"><span class="code">${x.c}</span><span>${x.d} · ${x.r==='in'?'India':'International'}</span></a><div class="body"><h3><a href="${slug(x)}">${x.n}</a></h3><ul>${x.t.map(t=>`<li>${t}</li>`).join('')}</ul>${detail?`<details class="itin"><summary>Day-by-day itinerary</summary><ol>${x.i.map(d=>`<li>${d}</li>`).join('')}</ol></details>`:''}<div class="foot"><div class="price"><small>from, per person</small><b>${x.cur||'₹'}${x.p}</b></div><button type="button" class="enq-btn" data-enq="${x.n}">Enquire →</button></div></div></article>`).join('')};
+  if(box) fill(box,P);
+  // Packages page: a Domestic and an International section, with search results above them
+  $$('.pkgs[data-r]').forEach(el=>fill(el,P.filter(x=>x.r===el.dataset.r)));
+  const sres=$('#sres');
+  if(sres){
     // Search from the home page lands here as packages.html?r=in|intl&q=Kashmir
     const sp=new URLSearchParams(location.search), sr=sp.get('r'), sq=(sp.get('q')||'').trim();
-    const setTab=f=>$$('[data-f]').forEach(o=>o.setAttribute('aria-pressed',o.dataset.f===f));
-    const note=document.createElement('div');note.className='search-note';box.before(note);note.hidden=true;
-    if(sq&&detail){
+    if(sq){
       const k=sq.toLowerCase().replace(/\(.*?\)/g,' ').split(/[^a-z]+/).filter(w=>w.length>2&&!['and','the','tour','trip'].includes(w));
       const text=x=>[x.n,x.s||'',...x.t,...x.i].join(' ').toLowerCase();
       const hit=x=>k.includes('europe')?(x.r==='intl'&&!/thailand|singapore|bali/i.test(x.n)):k.some(w=>text(x).includes(w));
-      const pool=P.filter(x=>!sr||x.r===sr), found=pool.filter(hit), place=sq.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-      const reg=sr==='in'?'India':sr==='intl'?'international':'';
-      if(found.length){
-        note.innerHTML=`<p><b>${found.length} package${found.length>1?'s':''} for ${place}</b> · <a href="packages.html">Show all packages</a></p>`;
-        draw('all',found);
-      } else {
-        note.innerHTML=`<div class="card"><p style="margin:0 0 12px"><b>We don’t have a ready package for ${place} yet.</b> We can plan a custom trip with hotels and sightseeing for your dates.</p><button type="button" class="btn" data-enq="${place} holiday">Get a custom quote</button></div>${reg?`<p style="margin-top:20px">Other ${reg} packages you may like:</p>`:''}`;
-        draw(sr==='in'||sr==='intl'?sr:'all');
-      }
-      note.hidden=false;setTab(sr==='in'||sr==='intl'?sr:'all');
+      const found=P.filter(x=>(sr!=='in'&&sr!=='intl'||x.r===sr)&&hit(x)), place=sq.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      $('#snote').innerHTML=found.length
+        ?`<h2>Search results for ${place}</h2><p>${found.length} package${found.length>1?'s':''} found · <a href="packages.html">Clear search</a></p>`
+        :`<h2>Search results for ${place}</h2><div class="card"><p style="margin:0 0 12px"><b>We don’t have a ready package for ${place} yet.</b> We can plan a custom trip with hotels and sightseeing for your dates.</p><button type="button" class="btn" data-enq="${place} holiday">Get a custom quote</button></div>`;
+      fill($('#pkgs-res'),found);sres.hidden=false;
       const h=$('.pagehead h1');if(h)h.textContent=`${sq} holiday packages`;
-    } else {
-      draw(sr==='in'||sr==='intl'?sr:'all');setTab(sr==='in'||sr==='intl'?sr:'all');
     }
-    $$('[data-f]').forEach(b=>b.addEventListener('click',()=>{setTab(b.dataset.f);note.hidden=true;draw(b.dataset.f)}));
   }
 
   const WA='https://wa.me/917075040406?text=';
