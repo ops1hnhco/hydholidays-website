@@ -118,25 +118,25 @@
   const qs=$('#qs');
   if(qs){
     const pad=n=>String(n).padStart(2,'0');
-    const day=k=>{const d=new Date();d.setDate(d.getDate()+k);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
     const mon=k=>{const d=new Date();d.setMonth(d.getMonth()+k);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
     const opt=a=>a.map(x=>`<option>${x}</option>`).join('');
+    const PAX=['2 adults','2 adults, 1 child','2 adults, 2 children','1 adult','Group (6+)'];
     const F={
-      h:{label:'Holiday',fields:[
+      d:{label:'Domestic holiday',fields:[
         {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
-        {id:'to',l:'Going to',t:'text',ph:'Kerala, Bali, Europe…',req:1},
+        {id:'to',l:'Going to',t:'text',ph:'Kashmir, Kerala, Goa…',req:1,dl:['Kashmir','Kerala','Andaman','Goa','Himachal','Sikkim']},
         {id:'month',l:'Travel month',t:'month',v:mon(2),min:mon(0)},
-        {id:'pax',l:'Travellers',t:'select',o:['2 adults','2 adults, 1 child','2 adults, 2 children','1 adult','Group (6+)']}]},
-      o:{label:'Hotel',fields:[
-        {id:'city',l:'City or hotel',t:'text',ph:'Goa, Kochi, Singapore…',req:1},
-        {id:'in',l:'Check-in',t:'date',v:day(14),min:day(0)},
-        {id:'out',l:'Check-out',t:'date',v:day(17),min:day(1)},
-        {id:'rooms',l:'Rooms & guests',t:'select',o:['1 room · 2 adults','1 room · 2 adults, 1 child','2 rooms · 4 adults','1 room · 1 adult','3+ rooms']}]}
+        {id:'pax',l:'Travellers',t:'select',o:PAX}]},
+      i:{label:'International holiday',fields:[
+        {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
+        {id:'to',l:'Going to',t:'text',ph:'Thailand, Bali, Europe…',req:1,dl:['Thailand','Singapore','Bali','Europe']},
+        {id:'month',l:'Travel month',t:'month',v:mon(2),min:mon(0)},
+        {id:'pax',l:'Travellers',t:'select',o:PAX}]}
     };
-    let tab='h';
+    let tab='d';
     const box=$('#qs-fields');
     const render=()=>{const cfg=F[tab];qs.style.setProperty('--n',cfg.fields.length);
-      box.innerHTML=cfg.fields.map(x=>`<label>${x.l}${x.t==='select'?`<select id="qs-${tab}-${x.id}">${opt(x.o)}</select>`:`<input id="qs-${tab}-${x.id}" type="${x.t}"${x.v?` value="${x.v}"`:''}${x.ph?` placeholder="${x.ph}"`:''}${x.min?` min="${x.min}"`:''}>`}</label>`).join('');
+      box.innerHTML=cfg.fields.map(x=>`<label>${x.l}${x.t==='select'?`<select id="qs-${tab}-${x.id}">${opt(x.o)}</select>`:`<input id="qs-${tab}-${x.id}" type="${x.t}"${x.v?` value="${x.v}"`:''}${x.ph?` placeholder="${x.ph}"`:''}${x.min?` min="${x.min}"`:''}${x.dl?` list="qs-${tab}-${x.id}-dl" autocomplete="off"`:''}>${x.dl?`<datalist id="qs-${tab}-${x.id}-dl">${x.dl.map(o=>`<option value="${o}">`).join('')}</datalist>`:''}`}</label>`).join('');
     };
     $$('[data-t]').forEach(b=>b.addEventListener('click',()=>{$$('[data-t]').forEach(o=>o.setAttribute('aria-pressed',o===b));tab=b.dataset.t;render()}));
     render();
@@ -146,8 +146,8 @@
       if(need){const el=$(`#qs-${tab}-${need.id}`);el.focus();el.setAttribute('aria-invalid','true');el.addEventListener('input',()=>el.removeAttribute('aria-invalid'),{once:true});return}
       const lines=cfg.fields.filter(x=>{const el=$(`#qs-${tab}-${x.id}`);return !el.disabled&&el.value.trim()}).map(x=>`${x.l}: ${fmt($(`#qs-${tab}-${x.id}`).value.trim())}`);
       const v=id=>fmt($(`#qs-${tab}-${id}`).value.trim());
-      const title={h:()=>v('to')+' holiday',o:()=>'Hotel in '+v('city')}[tab]();
-      const sub={h:()=>v('month')+' · '+v('pax'),o:()=>v('in')+' – '+v('out')+' · '+v('rooms')}[tab]();
+      const title={d:()=>v('to')+' holiday',i:()=>v('to')+' holiday'}[tab]();
+      const sub={d:()=>v('month')+' · '+v('pax'),i:()=>v('month')+' · '+v('pax')}[tab]();
       openEnq(title,{title,sub,eyebrow:cfg.label+' enquiry',msg:lines.join('\n')})});
   }
 
