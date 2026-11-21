@@ -124,19 +124,21 @@
     const F={
       d:{label:'Domestic holiday',fields:[
         {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
-        {id:'to',l:'Going to',t:'text',ph:'Kashmir, Kerala, Goa…',req:1,dl:['Kashmir','Kerala','Andaman','Goa','Himachal','Sikkim']},
+        {id:'to',l:'Going to',t:'dest',ph:'Type the destination',req:1,o:['Kashmir','Kerala','Goa','Andaman','Himachal (Shimla & Manali)','Sikkim & Darjeeling']},
         {id:'month',l:'Travel month',t:'month',v:mon(2),min:mon(0)},
         {id:'pax',l:'Travellers',t:'select',o:PAX}]},
       i:{label:'International holiday',fields:[
         {id:'from',l:'From',t:'text',v:'Hyderabad (HYD)'},
-        {id:'to',l:'Going to',t:'text',ph:'Thailand, Bali, Europe…',req:1,dl:['Thailand','Singapore','Bali','Europe']},
+        {id:'to',l:'Going to',t:'dest',ph:'Type the destination',req:1,o:['Thailand','Singapore','Bali','Europe']},
         {id:'month',l:'Travel month',t:'month',v:mon(2),min:mon(0)},
         {id:'pax',l:'Travellers',t:'select',o:PAX}]}
     };
     let tab='d';
     const box=$('#qs-fields');
     const render=()=>{const cfg=F[tab];qs.style.setProperty('--n',cfg.fields.length);
-      box.innerHTML=cfg.fields.map(x=>`<label>${x.l}${x.t==='select'?`<select id="qs-${tab}-${x.id}">${opt(x.o)}</select>`:`<input id="qs-${tab}-${x.id}" type="${x.t}"${x.v?` value="${x.v}"`:''}${x.ph?` placeholder="${x.ph}"`:''}${x.min?` min="${x.min}"`:''}${x.dl?` list="qs-${tab}-${x.id}-dl" autocomplete="off"`:''}>${x.dl?`<datalist id="qs-${tab}-${x.id}-dl">${x.dl.map(o=>`<option value="${o}">`).join('')}</datalist>`:''}`}</label>`).join('');
+      box.innerHTML=cfg.fields.map(x=>`<label>${x.l}${x.t==='dest'?`<select id="qs-${tab}-${x.id}" data-ph="${x.ph}"><option value="">Select destination</option>${opt(x.o)}<option value="__other">Other destination…</option></select>`:x.t==='select'?`<select id="qs-${tab}-${x.id}">${opt(x.o)}</select>`:`<input id="qs-${tab}-${x.id}" type="${x.t}"${x.v?` value="${x.v}"`:''}${x.ph?` placeholder="${x.ph}"`:''}${x.min?` min="${x.min}"`:''}>`}</label>`).join('');
+      box.querySelectorAll('select[data-ph]').forEach(sel=>sel.addEventListener('change',()=>{if(sel.value!=='__other')return;
+        const inp=document.createElement('input');inp.type='text';inp.id=sel.id;inp.placeholder=sel.dataset.ph;sel.replaceWith(inp);inp.focus()}));
     };
     $$('[data-t]').forEach(b=>b.addEventListener('click',()=>{$$('[data-t]').forEach(o=>o.setAttribute('aria-pressed',o===b));tab=b.dataset.t;render()}));
     render();
