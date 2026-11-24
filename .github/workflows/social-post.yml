@@ -16,6 +16,11 @@ on:
         type: choice
         options: ['', 'domestic package', 'international package', 'travel news']
         default: ''
+      style:
+        description: 'Design (blank = the next one in turn)'
+        type: choice
+        options: ['', classic, postcard, snapshot, magazine, slant, arch, royal, blocks]
+        default: ''
       brief:
         description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'
         required: false
@@ -58,6 +63,7 @@ jobs:
         run: node agent.js ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           KIND: ${{ inputs.kind }}
+          STYLE: ${{ inputs.style }}
           BRIEF: ${{ inputs.brief }}
           OFFER: ${{ inputs.offer }}
           PLATFORMS: ${{ inputs.platforms }}

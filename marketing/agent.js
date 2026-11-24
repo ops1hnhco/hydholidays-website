@@ -2,7 +2,8 @@
 // Each day Claude researches the web for something worth posting to Indian travellers
 // in turn: a domestic package idea, an international package idea or travel news,
 // checks what was posted recently, writes captions for each platform and the text for a
-// branded card over a Pixabay (or Pexels) photo of the destination. The agent renders a still image
+// branded design with a Pixabay (or Pexels) photo of the destination; the design changes every post
+// (styles.js). The agent renders a still image
 // and a 15-second video, and posts Reels to Facebook and Instagram, a Short to YouTube, and the image to X.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
 // (see marketing/README.md). A platform without credentials is skipped. With OFFER set (an offer
@@ -11,6 +12,7 @@
 //   node agent.js --dry-run                            research and write, post nothing
 //   BRIEF="Winter trips from Hyderabad" node agent.js  steer today's post
 //   KIND="travel news" node agent.js                   choose the kind instead of today's turn
+//   STYLE=postcard node agent.js                       choose the design instead of its turn
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,6 +24,7 @@ import sharp from 'sharp';
 import { TwitterApi } from 'twitter-api-v2';
 import { z } from 'zod';
 import { NOT_OFFERED_NOTE, OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
+import { layers, lookName, nextLook, stillImage, videoFilter } from './styles.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -29,7 +32,6 @@ const SITE = env('SITE_URL', 'https://www.hydholidays.com').replace(/\/$/, '');
 const GRAPH = `https://graph.facebook.com/${env('GRAPH_API_VERSION', 'v23.0')}`;
 const HISTORY_FILE = env('HISTORY_FILE', path.join(HERE, '.state', 'history.json'));
 const OUT_DIR = path.join(HERE, 'out');
-const LOGO = path.join(HERE, '..', 'logo.png');
 const MODEL = env('CLAUDE_MODEL', 'claude-sonnet-5-5');
 const WHATSAPP = '+91 70750 40406';
 const DRY_RUN = process.argv.includes('--dry-run') || env('POST_DRY_RUN') === '1';
@@ -193,27 +195,6 @@ async function write(client, brief) {
   return res.parsed_output;
 }
 
-// ---- Image card ----
-
-const xml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
-
-function wrap(text, perLine) {
-  const lines = [];
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const last = lines[lines.length - 1];
-    if (last && (last + ' ' + word).length <= perLine) lines[lines.length - 1] = last + ' ' + word;
-    else lines.push(word);
-  }
-  return lines;
-}
-
-// Brand palettes (style.css), rotated by post kind so the feed doesn't look identical every day.
-const THEMES = [
-  { bg: '#151a1c', band: '#0f6b6b', head: '#f2f4f3', kicker: '#e0b453', sub: '#9aa6a8', bandFg: '#e2f0ee' },
-  { bg: '#0f6b6b', band: '#151a1c', head: '#ffffff', kicker: '#e0b453', sub: '#e2f0ee', bandFg: '#9aa6a8' },
-  { bg: '#f7f8f7', band: '#0f6b6b', head: '#151a1c', kicker: '#c9962b', sub: '#5b6468', bandFg: '#e2f0ee' },
-];
-
 // ---- Photo ----
 
 // A free, licensed photo of the post's subject from Pixabay (PIXABAY_API_KEY) or Pexels
@@ -295,59 +276,7 @@ async function findPhoto(client, post, history) {
   return null;
 }
 
-// ---- Image and video ----
-
-// The design is two layers: a background (the photo, or a brand colour) and a transparent text
-// layer on top (dark fade, kicker, headline, supporting line, logo, contact band). The still image
-// combines them; the video zooms the background slowly and fades the text layer in over it.
-// Feed posts are 1080x1350 (4:5). Reels and Shorts are 1080x1920 (9:16); there the apps' own buttons
-// cover the top-right corner and the bottom ~400px, so the logo and contact band move inside that.
-async function background(photo, kind, H) {
-  if (photo) return sharp(photo.buffer).resize(1080, H, { fit: 'cover', position: sharp.strategy.attention }).jpeg({ quality: 90 }).toBuffer();
-  const t = THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
-  return sharp({ create: { width: 1080, height: H, channels: 3, background: t.bg } }).jpeg().toBuffer();
-}
-
-async function textLayer({ kicker, headline, subline }, kind, H, onPhoto) {
-  const t = onPhoto
-    ? { band: '#0f6b6b', head: '#ffffff', kicker: '#e0b453', sub: '#e2f0ee', bandFg: '#e2f0ee' }
-    : THEMES[Math.max(0, KINDS.indexOf(kind)) % THEMES.length];
-  const W = 1080, X0 = 90, tall = H > 1350;
-  let size = 96, lines;
-  do { lines = wrap(headline, Math.floor(900 / (size * 0.52))); } while (lines.length > 4 && (size -= 8) > 56);
-  const sub = wrap(subline || '', 34).slice(0, 3);
-  const logoTop = tall ? 230 : 80, bandY = tall ? H - 640 : H - 210;
-  // On a photo the text sits just above the contact band; on a plain card it is centred.
-  const subTop = (lines.length - 1) * size * 1.12 + 78; // first supporting line, below the last headline line
-  const below = sub.length ? subTop + (sub.length - 1) * 52 : (lines.length - 1) * size * 1.12;
-  const top = onPhoto ? bandY - 70 - below : 560 + (tall ? 160 : 0) - (lines.length - 1) * size * 0.55;
-  const fadeFrom = top - size - 320;
-  const shadow = onPhoto ? ' filter="url(#shadow)"' : '';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
-  <defs>
-    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="0.35" stop-color="#000" stop-opacity="0.55"/><stop offset="1" stop-color="#000" stop-opacity="0.85"/>
-    </linearGradient>
-    <filter id="shadow" x="-5%" y="-20%" width="110%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feOffset dy="2"/><feComponentTransfer><feFuncA type="linear" slope="0.6"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  </defs>
-  ${onPhoto ? `<rect y="${fadeFrom}" width="${W}" height="${H - fadeFrom}" fill="url(#fade)"/>` : ''}
-  <circle cx="${W - 165}" cy="${logoTop + 75}" r="88" fill="#ffffff"/>
-  <rect y="${bandY}" width="${W}" height="210" fill="${t.band}"/>
-  <rect x="${X0}" y="${top - size - 70}" width="90" height="6" fill="#c9962b"/>
-  <text x="${X0}" y="${top - size - 20}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="34" font-weight="700" letter-spacing="4" fill="${t.kicker}"${shadow}>${xml(kicker.toUpperCase())}</text>
-  ${lines.map((l, i) => `<text x="${X0}" y="${top + i * size * 1.12}" font-family="Georgia, 'DejaVu Serif', serif" font-size="${size}" fill="${t.head}"${shadow}>${xml(l)}</text>`).join('\n  ')}
-  ${sub.map((l, i) => `<text x="${X0}" y="${top + subTop + i * 52}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="40" fill="${t.sub}"${shadow}>${xml(l)}</text>`).join('\n  ')}
-  <text x="${X0}" y="${bandY + 90}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="40" font-weight="700" fill="#ffffff">Hyderabad Holidays Co.</text>
-  <text x="${X0}" y="${bandY + 144}" font-family="Arial, 'DejaVu Sans', sans-serif" font-size="32" fill="${t.bandFg}">hydholidays.com  ·  WhatsApp ${WHATSAPP}</text>
-</svg>`;
-  const logo = await sharp(LOGO).resize(150, 150).toBuffer();
-  return sharp(Buffer.from(svg)).composite([{ input: logo, top: logoTop, left: W - 240 }]).png().toBuffer();
-}
-
-async function renderImage(post, photo) {
-  const bg = await background(photo, post.kind, 1350);
-  return sharp(bg).composite([{ input: await textLayer(post.card, post.kind, 1350, !!photo) }]).jpeg({ quality: 90 }).toBuffer();
-}
+// ---- Video ----
 
 // Royalty-free tracks in marketing/music/*.mp3 take turns, one per day (or marketing/music.mp3).
 function pickMusic(now) {
@@ -358,21 +287,19 @@ function pickMusic(now) {
   return fs.existsSync(one) ? one : null;
 }
 
-// 15-second 1080x1920 video for Reels and Shorts: the photo zooms in slowly, the text fades in,
-// the music fades out at the end. Silent if there is no music.
-async function renderVideo(post, photo, now) {
-  const bg = path.join(OUT_DIR, 'video-bg.jpg'), text = path.join(OUT_DIR, 'video-text.png'), video = path.join(OUT_DIR, 'video.mp4');
-  fs.writeFileSync(bg, await background(photo, post.kind, 1920));
-  fs.writeFileSync(text, await textLayer(post.card, post.kind, 1920, !!photo));
+// 15-second 1080x1920 video for Reels and Shorts: the photo moves slowly, the text comes in (both depend
+// on the design), the music fades out at the end. Silent if there is no music.
+async function renderVideo(post, photo, look, now) {
+  const l = await layers(post.card, photo, look, 1920), video = path.join(OUT_DIR, 'video.mp4');
+  const inputs = [['video-bg.jpg', l.bg], ['video-frame.png', l.frame], ['video-text.png', l.text]].flatMap(([name, data]) => {
+    const file = path.join(OUT_DIR, name);
+    fs.writeFileSync(file, data);
+    return ['-loop', '1', '-i', file];
+  });
   const music = pickMusic(now);
   const audio = music ? ['-stream_loop', '-1', '-i', music] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
   execFileSync(ffmpegPath, [
-    '-y', '-loop', '1', '-i', bg, '-loop', '1', '-i', text, ...audio,
-    '-filter_complex',
-    "[0:v]scale=2160:3840,zoompan=z='min(zoom+0.00035,1.15)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=450:s=1080x1920:fps=30[bg];" +
-    '[1:v]format=rgba,fade=t=in:st=0.3:d=0.9:alpha=1[txt];' +
-    '[bg][txt]overlay=0:0,fade=t=out:st=14.2:d=0.8,format=yuv420p[v];' +
-    '[2:a]afade=t=in:st=0:d=0.5,afade=t=out:st=12.5:d=2.5[a]',
+    '-y', ...inputs, ...audio, '-filter_complex', videoFilter(l),
     '-map', '[v]', '-map', '[a]', '-t', '15', '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
     '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', video,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
@@ -536,9 +463,11 @@ console.log(`Today: ${post.kind} · ${post.topic}${DRY_RUN ? ' · DRY RUN' : ''}
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const photo = await findPhoto(client, post, history);
 console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain card'}`);
-const image = await renderImage(post, photo);
+const look = nextLook(history, now, env('STYLE', ''));
+console.log(`Design: ${lookName(look)}`);
+const image = await stillImage(post.card, photo, look);
 fs.writeFileSync(path.join(OUT_DIR, 'post.jpg'), image);
-const video = await renderVideo(post, photo, now);
+const video = await renderVideo(post, photo, look, now);
 
 const link = `${SITE}/`;
 const credit = photo ? `\n\n📷 ${photo.credit}` : '';
@@ -551,7 +480,7 @@ const out = {
     description: `${post.youtube.description.trim()}\n\nPlan your trip with Hyderabad Holidays Co.\nWhatsApp ${WHATSAPP} · ${link}${credit}`,
   },
 };
-fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, photo: photo && { url: photo.url, credit: photo.credit }, brief, final: out }, null, 2));
+fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, design: lookName(look), photo: photo && { url: photo.url, credit: photo.credit }, brief, final: out }, null, 2));
 
 const platforms = [
   { name: 'Facebook', keys: ['FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.facebook, run: () => reelOrPhoto(() => postFacebookReel(out.facebook, video), () => postFacebookPhoto(out.facebook, image)) },
@@ -580,13 +509,13 @@ for (const p of platforms) {
 }
 
 if (posted) {
-  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id });
+  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id, look });
   saveHistory(history);
 }
 if (env('GITHUB_STEP_SUMMARY')) {
   fs.appendFileSync(env('GITHUB_STEP_SUMMARY'), [
     `## ${post.kind}: ${post.topic}${held ? ' (HELD: facts not confirmed, nothing posted)' : ''}`,
-    `Photo: ${photo ? `${photo.url} (${photo.credit})` : 'none, plain brand card'}. Image and video: download the run's "post" artifact.`,
+    `Photo: ${photo ? `${photo.url} (${photo.credit})` : 'none, plain brand card'}. Design: ${lookName(look)}. Image and video: download the run's "post" artifact.`,
     `Sources:\n${post.sources.map(s => `- ${s}`).join('\n') || '- none listed'}`,
     ...report,
     `<details><summary>Research brief</summary>\n\n${brief}\n\n</details>\n`,

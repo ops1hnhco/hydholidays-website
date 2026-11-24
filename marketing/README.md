@@ -17,9 +17,12 @@ Every day at 19:30 IST, when Indian audiences are most active on social media,
 3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only, each
    opening with a hook line. It never invents prices or offers of its own.
 4. **Designs the visuals.** It finds a free, licensed photo of the destination on Pixabay and puts the
-   headline, logo, website and WhatsApp number over it: a 1080×1350 image and a 15-second vertical
-   video (the photo slowly zooms, the text fades in, music plays). The photographer is credited in the
-   captions. Without a photo key or a matching photo, it uses a plain brand-colour card instead.
+   headline, logo, website and WhatsApp number with it: a 1080×1350 image and a 15-second vertical
+   video (the photo moves slowly, the text comes in, music plays). The **design changes with every
+   post**: eight designs take turns (`styles.js`: classic, postcard, snapshot, magazine, slant, arch,
+   royal, blocks), each time round in the next of three colours, so 24 posts in a row look different.
+   Preview them with `node preview-styles.js`. The photographer is credited in the captions. Without a
+   photo key or a matching photo, the design gets a plain pattern in its colours instead.
 5. **Posts** the video as a **Reel** on the Facebook Page and Instagram, as a **Short** on YouTube, and
    the image on X. If a Reel upload fails, that platform gets the image instead. Facebook and X posts
    link to www.hydholidays.com.
