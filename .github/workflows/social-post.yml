@@ -1,10 +1,12 @@
-# Researches, writes and posts one travel post a day to Facebook, Instagram, X and YouTube Shorts.
+# Posts two of our packages a day, one international and one domestic, with their website prices, to Facebook,
+# Instagram, X and YouTube Shorts.
 # Setup and secrets: marketing/README.md
 name: Daily social post
 
 on:
   schedule:
-    - cron: '0 14 * * *' # 19:30 IST, when Indian audiences are most active (GitHub may start it a few minutes late)
+    - cron: '13 7 * * *'  # 12:43 IST: international package
+    - cron: '47 13 * * *' # 19:17 IST: domestic package (GitHub may start them late, so off the busy full hour)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -21,8 +23,11 @@ on:
         type: choice
         options: ['', classic, postcard, snapshot, magazine, slant, arch, royal, blocks]
         default: ''
+      package:
+        description: 'Package by name, e.g. Kerala (blank = the next one in turn)'
+        required: false
       brief:
-        description: 'Optional brief for this post, e.g. "Promote Kashmir for December"'
+        description: 'Research a post about this instead of a package, e.g. "Winter festivals in India"'
         required: false
       offer:
         description: 'Approved offer as JSON (set by marketing/whatsapp.js); replaces research'
@@ -41,7 +46,7 @@ permissions:
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # downloading and cutting video clips takes a few minutes
+    timeout-minutes: 25 # downloading and cutting video clips takes a few minutes
     defaults:
       run:
         working-directory: marketing
@@ -62,7 +67,8 @@ jobs:
       - name: Plan, write and publish today's post
         run: node agent.js ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
-          KIND: ${{ inputs.kind }}
+          KIND: ${{ inputs.kind || (github.event.schedule == '13 7 * * *' && 'international package') || (github.event.schedule == '47 13 * * *' && 'domestic package') || '' }}
+          PACKAGE: ${{ inputs.package }}
           STYLE: ${{ inputs.style }}
           BRIEF: ${{ inputs.brief }}
           OFFER: ${{ inputs.offer }}

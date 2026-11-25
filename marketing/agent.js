@@ -1,16 +1,17 @@
 // Daily social media agent for Hyderabad Holidays Co.
-// Each day Claude researches the web for something worth posting to Indian travellers
-// in turn: a domestic package idea, an international package idea or travel news,
-// checks what was posted recently, writes captions for each platform and the text for a
-// branded image, whose design changes every post (styles.js). It makes that image with a Pixabay (or Pexels)
-// photo of the destination and a 15-second video from real clips of it (reel.js), and posts Reels to Facebook
+// Two posts a day, each about one of our own packages with its price from the website: one international, one
+// domestic, every package in turn (packages.js). Claude writes captions for each platform from that package's
+// page; nothing is posted if a price in them is not on the page. The video is a day-by-day Reel made from real
+// clips of the places (reel.js), and the image's design changes every post (styles.js). Posts Reels to Facebook
 // and Instagram, a Short to YouTube, and the image to X.
+// With BRIEF set, or KIND="travel news", it researches the web for a post instead.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
 // (see marketing/README.md). A platform without credentials is skipped. With OFFER set (an offer
 // approved on WhatsApp, see whatsapp.js), it posts that offer instead of researching a topic.
 //
 //   node agent.js --dry-run                            research and write, post nothing
-//   BRIEF="Winter trips from Hyderabad" node agent.js  steer today's post
+//   PACKAGE="Kerala" node agent.js                     choose the package instead of its turn
+//   BRIEF="Winter trips from Hyderabad" node agent.js  research a post about this instead
 //   KIND="travel news" node agent.js                   choose the kind instead of today's turn
 //   STYLE=postcard node agent.js                       choose the design instead of its turn
 import fs from 'node:fs';
@@ -22,7 +23,9 @@ import sharp from 'sharp';
 import { TwitterApi } from 'twitter-api-v2';
 import { z } from 'zod';
 import { NOT_OFFERED_NOTE, OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
-import { findClips, renderReel } from './reel.js';
+import { hasKey, searchPhotos } from './media.js';
+import { PACKAGE_GUIDE, checkPost, nextPackages, packageBrief } from './packages.js';
+import { MAX_SCENES, findFootage, renderReel } from './reel.js';
 import { lookName, nextLook, stillImage } from './styles.js';
 
 const env = (k, d) => (process.env[k] || d);
@@ -36,9 +39,9 @@ const WHATSAPP = '+91 70750 40406';
 const DRY_RUN = process.argv.includes('--dry-run') || env('POST_DRY_RUN') === '1';
 const X_LINK_LEN = 23; // X counts every link as 23 characters
 
-// One kind a day, in this order.
 const KINDS = ['domestic package', 'international package', 'travel news'];
-const kindFor = now => KINDS[Math.floor((now.getTime() + 5.5 * 3600e3) / 86400e3) % KINDS.length]; // by IST date
+// The workflow names the kind for each of the day's two posts; run by hand, it is by the time of day (IST).
+const kindFor = now => KINDS[new Date(now.getTime() + 5.5 * 3600e3).getUTCHours() < 16 ? 1 : 0];
 
 const KIND_GUIDE = {
   'domestic package': `A holiday idea in India that we can arrange from Hyderabad: a destination that is in season in the coming weeks, a suggested length (for example 4 nights / 5 days), the route and 3-5 highlights. Check the season, weather and highlights. Do not give a price; we quote every trip on request.`,
@@ -53,7 +56,7 @@ function loadHistory() {
 }
 function saveHistory(list) {
   fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
-  fs.writeFileSync(HISTORY_FILE, JSON.stringify(list.slice(-120), null, 1));
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(list.slice(-400), null, 1));
 }
 
 // ---- Research and writing ----
@@ -89,7 +92,7 @@ const WRITE_SYSTEM = `You write social media posts for Hyderabad Holidays Co. ${
 You get a researched brief. Write today's post from it. If the brief is not marked READY, or it calls any fact you need unconfirmed, set ready to false; that post will not be published. Posts go live without review, so use only the facts in the brief, and never add prices, offers or claims of your own. If the brief mentions rules that change, say readers should check the latest before travelling.
 
 By kind:
-- Domestic or international package: present it as a trip we can plan and customise from Hyderabad, and invite readers to ask for a quote. No prices, except in our own offers (below).
+- Domestic or international package: present it as a trip we can plan and customise from Hyderabad, and invite readers to ask for a quote. No prices, except for our own packages and offers (below).
 - Travel news: explain plainly what changed and what travellers should do, then offer our help.
 
 Voice: warm, clear and helpful, like a knowledgeable local travel agent. Plain Indian English. At most two or three emojis per post. No clickbait, no ALL CAPS, no urgency claims. End by inviting readers to plan the trip with us.
@@ -103,9 +106,16 @@ Platforms:
 - YouTube Short: a title of at most 80 characters (no hashtags; "#Shorts" is added), and a description of 60-150 words that ends with 3-5 hashtags. Our website and WhatsApp details are added after the description.
 Write each platform's text separately so they do not read as copies.
 
-Facebook and Instagram get a 15-second Reel and YouTube a Short: real video clips of the destination, with your card text over them: the kicker and headline first, then the supporting line. The same text goes on the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
+X gets a still image with your card text. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
 
-photo_queries are 3 stock searches of 1-3 words each, used for both a photo and video clips: beautiful, recognisable views of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["mountain road trip", "beach sunset"]. Never ask for people's faces, flags or logos.
+photo_queries are 3 stock searches of 1-3 words each, used for the image's photo and the Reel's opening shot: beautiful, recognisable views of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["mountain road trip", "beach sunset"]. Never ask for people's faces, flags or logos.
+
+Facebook, Instagram and YouTube get a Reel of real video clips. It opens with "place" in big letters (the destination's everyday name, at most 25 characters), then shows your scenes, about 3 seconds each, with the label and place over the clip, and ends with our contact details. Scenes:
+- For a package or trip idea: one scene for each day of the plan, in order. label is "Day 1", "Day 2" and so on; place is that day's main sight or place in 1-4 words ("Munnar Tea Gardens", "Alleppey Houseboat"), only from the plan. Leave out days with nothing to see (departure, a long transfer). If there are more than ${MAX_SCENES}, group days ("Days 3-4") or keep the best ones.
+- For travel news: 3-5 scenes of what the post is about, with an empty label.
+- query is a stock search for that scene, 1-3 words with the place name last ("tea Munnar", "houseboat Alleppey", "Radhanagar beach"), as words are dropped from the front if nothing is found.
+
+Our own packages: ${PACKAGE_GUIDE}
 
 Our own offers: ${OFFER_GUIDE} Put the price, if any, in the card's subline. sources is empty.${NOT_OFFERED_NOTE}`;
 
@@ -119,6 +129,8 @@ const Post = z.object({
     subline: z.string(),
   }),
   photo_queries: z.array(z.string()),
+  place: z.string(),
+  scenes: z.array(z.object({ label: z.string(), place: z.string(), query: z.string() })),
   facebook: z.string(),
   instagram: z.string(),
   x: z.string(),
@@ -134,10 +146,9 @@ function checkStop(res, step) {
 }
 
 async function research(client, now, history) {
-  const recent = history.slice(-30).map(h => `- ${h.date}: ${h.kind}, ${h.topic}`).join('\n') || '- nothing yet, this is the first post';
+  const recent = history.filter(h => h.topic).slice(-30).map(h => `- ${h.date}: ${h.kind}, ${h.topic}`).join('\n') || '- nothing yet, this is the first post';
   const brief = env('BRIEF');
   const kind = env('KIND', kindFor(now));
-  if (!KINDS.includes(kind)) throw new Error(`Unknown KIND "${kind}". Options: ${KINDS.join(', ')}`);
   const messages = [{
     role: 'user',
     content: `Today is ${now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full' })}.
@@ -179,7 +190,7 @@ Choose and research today's post.`,
   throw new Error('Research step did not finish after 5 continuations');
 }
 
-async function write(client, brief) {
+async function write(client, brief, problems = []) {
   const res = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
@@ -187,7 +198,7 @@ async function write(client, brief) {
     fallbacks: 'default',
     output_config: { effort: 'medium', format: betaZodOutputFormat(Post) },
     system: WRITE_SYSTEM,
-    messages: [{ role: 'user', content: `Brief:\n\n${brief}` }],
+    messages: [{ role: 'user', content: `Brief:\n\n${brief}${problems.length ? `\n\nAn earlier version of this post had these problems; avoid them:\n- ${problems.join('\n- ')}` : ''}` }],
   });
   checkStop(res, 'writing');
   if (!res.parsed_output) throw new Error(`Claude returned no post (stop reason: ${res.stop_reason})`);
@@ -196,38 +207,16 @@ async function write(client, brief) {
 
 // ---- Photo ----
 
-// A free, licensed photo of the post's subject from Pixabay (PIXABAY_API_KEY) or Pexels
-// (PEXELS_API_KEY). Stock searches often return look-alikes (Death Valley for the Rann of Kutch),
-// so Claude looks at the candidates and only accepts one that really shows the place. It tries the
-// writer's searches from most specific to most general, skips photos used before, and falls back to
-// the plain brand card if nothing fits. Searches return { id, image, preview, tags, credit, url }.
-// Pixabay only returns photos tagged with every word of the search, so a search that finds nothing
-// is retried with its first words dropped ("Ha Long Bay Vietnam" -> ... -> "Vietnam").
-async function searchPixabay(query, key) {
-  const search = (q, orientation) => fetch(`https://pixabay.com/api/?${new URLSearchParams({ key, q, image_type: 'photo', orientation, safesearch: 'true', min_width: '1080', per_page: '20' })}`).then(r => r.json());
-  const words = query.split(/\s+/).filter(Boolean);
-  let hits = [];
-  for (let i = 0; i < words.length && !hits.length; i++) {
-    const q = words.slice(i).join(' ');
-    ({ hits = [] } = await search(q, 'vertical'));
-    if (hits.length < 4) ({ hits = [] } = await search(q, 'all'));
-    if (i && hits.length) console.log(`  "${query}" found nothing; using "${q}"`);
-  }
-  return hits.map(h => ({ id: `pixabay-${h.id}`, image: h.largeImageURL, preview: h.webformatURL, tags: h.tags, credit: `Photo: ${h.user} on Pixabay`, url: h.pageURL }));
-}
-
-async function searchPexels(query, key) {
-  const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query, orientation: 'portrait', size: 'large', per_page: '15' })}`, { headers: { Authorization: key } });
-  const { photos = [] } = await r.json();
-  return photos.map(p => ({ id: p.id, image: `${p.src.original}?auto=compress&cs=tinysrgb&w=2160`, preview: p.src.medium, tags: p.alt, credit: `Photo: ${p.photographer} on Pexels`, url: p.url }));
-}
-
+// A photo of the post's subject for the still image (searches: media.js). Stock searches often return
+// look-alikes (Death Valley for the Rann of Kutch), so Claude looks at the candidates and only accepts one
+// that really shows the place. It tries the writer's searches from most specific to most general, skips
+// photos used lately, and falls back to a plain pattern if nothing fits.
 const PhotoChoice = z.object({
   reason: z.string().describe('One sentence on why this photo, or why none fits'),
-  photos: z.array(z.number().int()).describe('Numbers of the photos that fit, best first; empty if none fits'),
+  photo: z.number().int().describe('The number of the chosen photo, or 0 if none of them fits'),
 });
 
-async function choosePhotos(client, post, candidates, want) {
+async function choosePhoto(client, post, candidates) {
   const shown = [], content = [];
   for (const c of candidates) {
     const r = await fetch(c.preview).catch(err => ({ ok: false, status: err.message }));
@@ -236,12 +225,12 @@ async function choosePhotos(client, post, candidates, want) {
     shown.push(c);
     content.push({ type: 'text', text: `Photo ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpg.toString('base64') } });
   }
-  if (!shown.length) return [];
+  if (!shown.length) return null;
   content.push({ type: 'text', text: `These are candidate background photos for a social media post by an Indian travel agency.
 Post: ${post.topic}
 Headline on the image: ${post.card.headline}
 
-Pick up to ${want} photos that suit the post, best first, showing different views. If the post is about a particular place, each photo must clearly show that place (or, failing that, an unmistakable part of the same region): someone who knows it should recognise it. A similar-looking place elsewhere is not acceptable, and neither is a photo whose tags name a different place. For general topics, any photo that fits the subject is fine. Prefer clear, attractive scenes without close-up faces, text, logos or flags. Choose none if none is right; we then use a plain design, which is far better than a misleading photo.` });
+Pick the photo that best suits the post. If the post is about a particular place, the photo must clearly show that place (or, failing that, an unmistakable part of the same region): someone who knows it should recognise it. A similar-looking place elsewhere is not acceptable, and neither is a photo whose tags name a different place. For general topics, any photo that fits the subject is fine. Prefer clear, attractive scenes without close-up faces, text, logos or flags. Answer 0 if none is right; we then use a plain design, which is far better than a misleading photo.` });
   const res = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -250,31 +239,27 @@ Pick up to ${want} photos that suit the post, best first, showing different view
     output_config: { effort: 'low', format: betaZodOutputFormat(PhotoChoice) },
     messages: [{ role: 'user', content }],
   });
-  const picks = [...new Set(res.parsed_output?.photos || [])].filter(n => n >= 1 && n <= shown.length).slice(0, want);
-  console.log(`  ${shown.length} photos checked, Claude chose ${picks.join(', ') || 'none'}: ${res.parsed_output?.reason || res.stop_reason}`);
-  return picks.map(n => shown[n - 1]);
+  const n = res.parsed_output?.photo;
+  console.log(`  ${shown.length} photos checked, Claude chose ${n || 'none'}: ${res.parsed_output?.reason || res.stop_reason}`);
+  return n >= 1 && n <= shown.length ? shown[n - 1] : null;
 }
 
-async function findPhotos(client, post, used, want) {
-  const pixabay = env('PIXABAY_API_KEY'), pexels = env('PEXELS_API_KEY');
-  if (!(pixabay || pexels)) return [];
+async function findPhoto(client, post, used) {
+  if (!hasKey()) return null;
   for (const query of post.photo_queries.slice(0, 3)) {
     try {
-      const found = (pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels)).filter(x => !used.has(x.id)).slice(0, 8);
+      const found = (await searchPhotos(query)).filter(x => !used.has(x.id)).slice(0, 8);
       console.log(`Photo search "${query}": ${found.length} results`);
-      const photos = [];
-      for (const p of found.length ? await choosePhotos(client, post, found, want) : []) {
-        const img = await fetch(p.image);
-        if (img.ok) photos.push({ id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url, query });
-        else console.log(`  photo ${p.url}: HTTP ${img.status}`);
-      }
-      if (photos.length) return photos;
-      console.log(`Photo search "${query}": nothing that shows the subject`);
+      const p = found.length ? await choosePhoto(client, post, found) : null;
+      if (!p) { console.log(`Photo search "${query}": nothing that shows the subject`); continue; }
+      const img = await fetch(p.image);
+      if (!img.ok) throw new Error(`HTTP ${img.status}`);
+      return { ...p, buffer: Buffer.from(await img.arrayBuffer()), query };
     } catch (err) {
       console.log(`Photo search "${query}" failed: ${err.message}`);
     }
   }
-  return [];
+  return null;
 }
 
 // ---- Music ----
@@ -428,39 +413,64 @@ const client = new Anthropic();
 const confirmed = b => (b.match(/STATUS\W*(NOT READY|READY)/i)?.[1] || '').toUpperCase() === 'READY';
 // An approved offer is already confirmed by the owner, so it is written once without research.
 const offer = readOffer(env('OFFER'));
-let brief, post;
+const kind = env('KIND', kindFor(now));
+if (!KINDS.includes(kind)) throw new Error(`Unknown KIND "${kind}". Options: ${KINDS.join(', ')}`);
+let brief, post, pkg = null, problems = [];
 if (offer) {
   brief = offerBrief(offer);
   post = await write(client, brief);
+} else if (env('PACKAGE') || (kind !== 'travel news' && !env('BRIEF'))) {
+  // The next package in turn. If its page is out of date (dates passed) or the post fails its checks twice,
+  // it is skipped for a month and the next package is tried.
+  for (const x of nextPackages(history, kind, now, env('PACKAGE'))) {
+    pkg = x;
+    brief = packageBrief(x, x.region === 'in' ? KINDS[0] : KINDS[1], now);
+    problems = [];
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      post = await write(client, brief, problems);
+      problems = post.ready ? checkPost(post, x) : [];
+      if (!post.ready || !problems.length) break;
+      console.log(`${x.name}: attempt ${attempt} has problems:\n- ${problems.join('\n- ')}`);
+    }
+    if (post.ready && !problems.length) break;
+    console.log(`${x.name}: skipped, ${post.ready ? 'the post failed its checks' : 'the page has no current dates or prices'}`);
+    history.push({ date: now.toISOString().slice(0, 10), package: x.page, skipped: true });
+  }
+} else {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    brief = await research(client, now, history);
+    post = await write(client, brief);
+    if (confirmed(brief) && post.ready) break;
+    console.log(`Attempt ${attempt}: research not confirmed${attempt === 1 ? ', researching again' : ''}`);
+  }
 }
-for (let attempt = 1; !offer && attempt <= 2; attempt++) {
-  brief = await research(client, now, history);
-  post = await write(client, brief);
-  if (confirmed(brief) && post.ready) break;
-  console.log(`Attempt ${attempt}: research not confirmed${attempt === 1 ? ', researching again' : ''}`);
-}
-const held = !(confirmed(brief) && post.ready);
-console.log(`Today: ${post.kind} · ${post.topic}${DRY_RUN ? ' · DRY RUN' : ''}${held ? ' · HELD, facts not confirmed' : ''}\n\n--- Research brief ---\n${brief}`);
+if (!post) throw new Error(`No ${kind} to post about`);
+const held = !(confirmed(brief) && post.ready) || problems.length > 0;
+console.log(`Today: ${post.kind} · ${post.topic}${pkg ? ` · ${pkg.page}, ${pkg.price}` : ''}${DRY_RUN ? ' · DRY RUN' : ''}${held ? ' · HELD, facts not confirmed' : ''}\n\n--- Brief ---\n${brief}`);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-const used = new Set(history.flatMap(h => [h.photo, ...(h.media || [])]).filter(Boolean));
-const clips = await findClips(client, MODEL, post, used, OUT_DIR);
-const photos = await findPhotos(client, post, used, Math.max(1, 4 - clips.length)); // the image's photo, and any the video needs
-const photo = photos[0];
-console.log(`Clips: ${clips.map(c => c.url).join(', ') || 'none that show the subject'}`);
-console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain card'}`);
+const used = new Set(history.slice(-20).flatMap(h => [h.photo, ...(h.media || [])]).filter(Boolean));
+const photo = await findPhoto(client, post, used);
+console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain pattern'}`);
+const scenes = await findFootage(client, MODEL, post, used, OUT_DIR);
+const clips = scenes.map(s => s.clip).filter(Boolean), stills = scenes.map(s => s.photo).filter(Boolean);
+console.log(`Reel:\n${scenes.map(s => `- ${s.title ? 'Title' : s.label || 'Scene'}: ${s.place} · ${s.clip ? `clip ${s.clip.url}` : s.photo ? `photo ${s.photo.url}` : 'nothing that shows it'}`).join('\n')}`);
 const look = nextLook(history, now, env('STYLE', ''));
 console.log(`Design: ${lookName(look)}`);
 const image = await stillImage(post.card, photo, look);
 fs.writeFileSync(path.join(OUT_DIR, 'post.jpg'), image);
-const video = await renderReel({ card: post.card, clips, photos, look, music: pickMusic(now), dir: OUT_DIR, out: path.join(OUT_DIR, 'video.mp4') });
+const trip = pkg?.nights.match(/(\d+)N\/(\d+)D/);
+const title = {
+  big: post.place || post.topic, small: trip ? `${trip[1]} Nights / ${trip[2]} Days` : post.card.kicker,
+  price: pkg || offer ? post.card.subline : '', cta: post.kind === 'travel news' ? 'Read the caption' : 'Full plan in the caption',
+};
+const video = await renderReel({ title, scenes, look, music: pickMusic(now), dir: OUT_DIR, out: path.join(OUT_DIR, 'video.mp4') });
 
-const link = `${SITE}/`;
+const link = `${SITE}/${pkg ? pkg.page : ''}`;
 const names = [...new Set(clips.map(c => c.credit).filter(Boolean))];
-const credit = [
-  names.length && `🎥 Video: ${names.join(', ')} on ${clips[0].site}`,
-  photo && `📷 ${[...new Set((clips.length >= 4 ? [photo] : photos).map(p => p.credit))].join('; ')}`,
-].filter(Boolean).map((c, i) => `${i ? '\n' : '\n\n'}${c}`).join('');
+const photoCredits = [...new Set([photo, ...stills].filter(Boolean).map(p => p.credit))];
+const credit = [names.length && `🎥 Video: ${names.join(', ')} on ${clips[0].site}`, photoCredits.length && `📷 ${photoCredits.join('; ')}`]
+  .filter(Boolean).map((c, i) => `${i ? '\n' : '\n\n'}${c}`).join('');
 const out = {
   facebook: `${post.facebook.trim()}\n\n${link}${credit}`,
   instagram: `${post.instagram.trim()}${credit}`,
@@ -486,7 +496,7 @@ const report = [];
 let failed = 0, posted = 0;
 for (const p of platforms) {
   let status;
-  if (held) status = 'held, not posted: the research could not confirm the facts';
+  if (held) status = 'held, not posted: the research could not confirm the facts, or the post failed its checks';
   else if (only.length && !only.includes(p.name.toLowerCase())) status = 'skipped, not selected for this run';
   else if (DRY_RUN) status = 'dry run, not posted';
   else if (p.keys.some(k => !env(k))) status = `skipped, missing ${p.keys.filter(k => !env(k)).join(', ')}`;
@@ -499,7 +509,7 @@ for (const p of platforms) {
 }
 
 if (posted) {
-  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id, media: [...clips, ...photos].map(m => m.id), look });
+  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id, media: [...clips, ...stills].map(m => m.id), look, package: pkg?.page });
   saveHistory(history);
 }
 if (env('GITHUB_STEP_SUMMARY')) {

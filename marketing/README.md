@@ -1,28 +1,21 @@
 # Social media agent
 
-Every day at 19:30 IST, when Indian audiences are most active on social media,
-`.github/workflows/social-post.yml` runs `agent.js`. It does not use the website's content. Each day it:
+Twice a day, `.github/workflows/social-post.yml` runs `agent.js`: an **international** package at about
+12:43 IST and a **domestic** one at about 19:17 IST (GitHub sometimes starts them late). Each time it:
 
-1. **Takes the next kind of post** in this three-day cycle:
-
-   | Kind | What it posts |
-   |---|---|
-   | Domestic package | A trip idea in India that's in season: length, route, highlights. No price; readers ask for a quote |
-   | International package | A trip idea abroad that's in season: length, route, highlights. No price |
-   | Travel news | Recent news that affects Indian travellers: advisories, destination news, festivals and events |
-
-2. **Researches on the web.** Claude searches official sources (governments, tourism boards)
-   and established news outlets, and only keeps facts it could confirm. It also checks the list of
-   recent posts so it doesn't repeat a destination or story within 30 days.
-3. **Writes a separate caption** for Facebook, Instagram, X and YouTube, from those facts only, each
-   opening with a hook line. It never invents prices or offers of its own.
-4. **Makes the visuals.** A 15-second vertical video from up to four **real video clips** of the place
-   (Pixabay), full screen, with light captions and music (`reel.js`). Claude looks at frames from every
-   clip and rejects look-alike places. Photos of the place fill in when there aren't enough clips. And a
-   1080×1350 image with a photo, the headline, logo, website and WhatsApp number, whose **design changes
-   with every post** (`styles.js`): eight designs take turns, each time round in the next of three
-   colours. Preview them with `node preview-styles.js`. Clip makers and photographers are credited in the
-   captions.
+1. **Takes the next package** from the website's list (`app.js`). Every package gets a turn before any gets a
+   second one, and packages of the same destination are kept apart (`packages.js`). Christmas trips are posted
+   only in November and early December.
+2. **Reads that package's page** on the website: price, day-by-day plan, inclusions, dates. There is no web
+   research, so a price change on the website is in the next post.
+3. **Writes a separate caption** for Facebook, Instagram, X and YouTube from that page only. Every price is
+   checked against the page before posting; a post with a wrong or missing price, or that mentions something we
+   don't offer, is rewritten once and then not posted. Packages whose dates have passed are skipped for a month.
+4. **Makes the visuals.** A Reel of up to 30 seconds from **real video clips** (Pixabay, `reel.js`): the place
+   and length of the trip, then a clip for each day ("Day 2 · Munnar Tea Gardens"), then the price and our
+   contact details. Claude looks at frames from every clip and rejects look-alike places; a day without a clip
+   gets a photo, or is left out. And a 1080×1350 image whose **design changes with every post** (`styles.js`,
+   preview with `node preview-styles.js`). Clip makers and photographers are credited in the captions.
 5. **Posts** the video as a **Reel** on the Facebook Page and Instagram, as a **Short** on YouTube, and
    the image on X. If a Reel upload fails, that platform gets the image instead. Facebook and X posts
    link to www.hydholidays.com.
