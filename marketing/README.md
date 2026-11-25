@@ -13,8 +13,9 @@ Twice a day, `.github/workflows/social-post.yml` runs `agent.js`: an **internati
    don't offer, is rewritten once and then not posted. Packages whose dates have passed are skipped for a month.
 4. **Makes the visuals.** A Reel of up to 30 seconds from **real video clips** (Pixabay, `reel.js`): the place
    and length of the trip, then one or two clips for each day ("Day 2 · Munnar Tea Gardens") cut to the beat of the music, then the
-   price and our contact details. Claude looks at frames from every clip and rejects look-alike places; a day without a clip
-   gets a photo, or is left out. And a 1080×1350 image whose **design changes with every post** (`styles.js`,
+   price and our contact details. Claude looks at frames from every clip and rejects look-alike places. A day without a clip
+   gets a photo (Pixabay, or Wikimedia Commons with credit); days without either go on a "Your plan" list
+   over the trip's other footage. And a 1080×1350 image whose **design changes with every post** (`styles.js`,
    preview with `node preview-styles.js`). Clip makers and photographers are credited in the captions.
 5. **Posts** the video as a **Reel** on the Facebook Page and Instagram, as a **Short** on YouTube, and
    the image on X. If a Reel upload fails, that platform gets the image instead. Facebook and X posts

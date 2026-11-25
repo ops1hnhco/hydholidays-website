@@ -70,6 +70,23 @@ export async function searchVideos(query, { exact = false } = {}) {
     .sort((a, b) => (cropHeight(b.files[0]) >= 1900) - (cropHeight(a.files[0]) >= 1900));
 }
 
+// Photos from Wikimedia Commons that may be used commercially with credit (public domain, CC0 and CC BY; not
+// share-alike). No key needed.
+let lastCommons = 0;
+export async function searchCommons(query) {
+  const wait = lastCommons + 1500 - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait)); // it allows few requests a minute
+  lastCommons = Date.now();
+  const { query: q } = await json(`https://commons.wikimedia.org/w/api.php?${new URLSearchParams({ action: 'query', format: 'json', generator: 'search', gsrnamespace: '6', gsrsearch: `${query} filetype:bitmap`, gsrlimit: '40', prop: 'imageinfo', iiprop: 'url|size|mime|extmetadata', iiurlwidth: '1920', iiextmetadatafilter: 'LicenseShortName|Artist|ImageDescription' })}`,
+    { headers: { 'User-Agent': 'HydHolidaysPostAgent/1.0 (https://www.hydholidays.com)' } });
+  const text = h => String(h || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+  return Object.values(q?.pages || {}).sort((a, b) => a.index - b.index).map(p => ({ title: p.title, ...p.imageinfo?.[0] }))
+    .filter(p => p.thumburl && /jpe?g|png/.test(p.mime) && Math.min(p.width, p.height) >= 1000 && p.width / p.height < 2 && /^(CC0|Public domain|CC BY \d)/i.test(p.extmetadata?.LicenseShortName?.value || ''))
+    .map(p => ({ id: `commons-${p.title}`, image: p.thumburl, preview: p.thumburl, url: p.descriptionurl,
+      tags: `${p.title.replace(/^File:|\.\w+$/g, '')}; ${text(p.extmetadata.ImageDescription?.value).slice(0, 150)}`,
+      credit: `Photo: ${text(p.extmetadata.Artist?.value).slice(0, 40) || 'Wikimedia Commons'} (${p.extmetadata.LicenseShortName.value}, Wikimedia Commons)` }));
+}
+
 export async function download(url, file) {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);

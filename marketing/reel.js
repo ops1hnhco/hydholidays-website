@@ -2,7 +2,7 @@
 // trip, then shows one or two clips for each day with "Day 1", the place and what you do there over them, and
 // ends with the price and our contact details. Cuts fall on the beat of the music. Clips are stock footage, so
 // Claude looks at frames from every one and only accepts clips that really show that place. A scene without a
-// clip gets a photo of the place; without either it is left out.
+// clip gets a photo of the place. Days without either are shown as a list of the plan over the trip's footage.
 // 1080x1920 (9:16), up to about 30 seconds. The apps' own buttons cover the top ~220px, the bottom ~430px and
 // the lower right edge, so the text stays in the upper middle.
 import { execFileSync } from 'node:child_process';
@@ -12,13 +12,13 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import ffmpegPath from 'ffmpeg-static';
 import sharp from 'sharp';
 import { z } from 'zod';
-import { download, ffmpeg, hasKey, searchPhotos, searchVideos } from './media.js';
+import { download, ffmpeg, hasKey, searchCommons, searchPhotos, searchVideos } from './media.js';
 import { CONTACT, SANS, SERIF, SHADOW, brand, contactFont, draw, fit, loadLogo, logo, paletteFor, pattern } from './styles.js';
 
 const W = 1080, H = 1920;
 const CUT = 0.3; // seconds a transition takes
 export const MAX_SCENES = 8;
-const PER_SCENE = 6; // candidates Claude looks at for each scene
+const MAX_POOL = 40, PER_SEARCH = 10; // candidates Claude looks at, and the most from one search
 
 // ---- Finding clips and photos ----
 
@@ -35,76 +35,82 @@ async function look(c, dir) {
   return (await sharp(fs.readFileSync(c.files ? strip : file)).resize(900, 600, { fit: 'inside' }).jpeg({ quality: 78 }).toBuffer()).toString('base64');
 }
 
-// options: [[candidates for scene 0], ...]. Returns up to two chosen candidates for each scene.
-async function choose(client, model, post, scenes, options, what, dir) {
+// Returns up to two chosen items of the pool for each scene.
+async function choose(client, model, post, scenes, pool, what, dir) {
   const shown = [], content = [];
-  for (const [i, list] of options.entries()) {
-    if (!list?.length) continue;
-    content.push({ type: 'text', text: `SCENE ${i}: ${describe(scenes[i])}` });
-    for (const c of list) {
-      try {
-        const data = await look(c, dir);
-        shown.push(c);
-        content.push({ type: 'text', text: `${what} ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } });
-      } catch (err) { console.log(`  ${c.url}: preview failed: ${err.message}`); }
-    }
+  for (const c of pool) {
+    try {
+      const data = await look(c, dir);
+      shown.push(c);
+      content.push({ type: 'text', text: `${what} ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } });
+    } catch (err) { console.log(`  ${c.url}: preview failed: ${err.message}`); }
   }
   if (!shown.length) return [];
-  content.push({ type: 'text', text: `These are candidate stock ${what === 'Clip' ? 'video clips (three frames from each)' : 'photos'} for a short travel Reel by an Indian travel agency about: ${post.topic}. Each scene's label is shown over it, so viewers believe they are looking at that place.
+  const list = scenes.map((s, i) => (s.done ? '' : `SCENE ${i}: ${describe(s)}`)).filter(Boolean).join('\n');
+  content.push({ type: 'text', text: `These are candidate stock ${what === 'Clip' ? 'video clips (three frames from each)' : 'photos'} for a short travel Reel by an Indian travel agency about: ${post.topic}. Each scene's label is shown over its picture, so viewers believe they are looking at that place.
 
-For each scene choose the one or two best items listed under it, best first; two only if they are clearly different views. Leave the scene out if none is right. Use an item once only. Prefer bright, lively footage with movement: water, boats, people walking, drone views. An item must clearly show the place in the scene's label, or an unmistakable example of what the label says in that same region (for "Munnar tea gardens", tea hills in Kerala). A similar-looking place elsewhere is not acceptable, and neither is an item whose tags name a different place. The title scene can be any striking view of the trip. The picture is cropped to a tall 9:16 frame around its centre, so the subject should be near the middle. Reject animation, AI-generated or heavily filtered pictures, watermarks, text, logos, flags, close-up recognisable faces, children as the main subject, and dark or shaky footage. Leaving a scene out is far better than a misleading picture.` });
+${list}
+
+Give each scene the one or two items that suit it best, best first; two only if they are clearly different views. Use an item once only, and try to cover as many scenes as you can, but leave a scene out if none is right. An item must show the place in the scene's label, or an unmistakable example of what the label or its detail says in that same region: for "Day 2: Munnar Tea Gardens", tea hills in Kerala; for "Day 4: Alleppey Houseboat", a Kerala houseboat or backwaters. A similar-looking place elsewhere is not acceptable, and neither is an item whose tags name a different place. The opening scene can be any striking view of the trip. The picture is cropped to a tall 9:16 frame around its centre, so the subject should be near the middle. Prefer bright, lively pictures with movement: water, boats, people walking, drone views. Reject animation, AI-generated or heavily filtered pictures, watermarks, text, logos, flags, close-up recognisable faces, children as the main subject, and dark or shaky footage. Leaving a scene out is far better than a misleading picture.` });
   const res = await client.beta.messages.parse({
     model, max_tokens: 6000, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
-    output_config: { effort: 'low', format: betaZodOutputFormat(Picks) },
+    output_config: { effort: 'medium', format: betaZodOutputFormat(Picks) },
     messages: [{ role: 'user', content }],
   });
   const out = [], taken = new Set();
   for (const { scene, item } of res.parsed_output?.picks || []) {
     const c = shown[item - 1];
-    if (c && options[scene]?.includes(c) && (out[scene]?.length || 0) < 2 && !taken.has(c.id)) { (out[scene] ||= []).push(c); taken.add(c.id); }
+    if (c && scenes[scene] && !scenes[scene].done && (out[scene]?.length || 0) < 2 && !taken.has(c.id)) { (out[scene] ||= []).push(c); taken.add(c.id); }
   }
-  console.log(`  ${shown.length} ${what.toLowerCase()}s checked, Claude chose ${out.filter(Boolean).length} for ${scenes.length} scenes: ${res.parsed_output?.reason || res.stop_reason}`);
+  console.log(`  ${shown.length} ${what.toLowerCase()}s checked, Claude chose ${out.flat().length} for ${out.filter(Boolean).length} of ${scenes.length} scenes: ${res.parsed_output?.reason || res.stop_reason}`);
   return out;
 }
 
-const describe = s => (s.title ? `the opening shot, any striking view of ${s.place}` : [s.label, s.place].filter(Boolean).join(': '));
+const describe = s => (s.title ? `the opening shot, any striking view of ${s.place}` : [s.label, s.place].filter(Boolean).join(': ') + (s.detail ? ` (${s.detail})` : ''));
 
-// Candidates for each scene, each used under one scene only.
-async function candidates(scenes, search, skip, name) {
-  const seen = new Set(skip), options = [];
-  for (const [i, s] of scenes.entries()) {
-    if (s.done || !s.query) continue;
-    try {
-      const list = (await search(s.query)).filter(c => !seen.has(c.id)).slice(0, PER_SCENE);
-      list.forEach(c => seen.add(c.id));
-      console.log(`${name} search "${s.query}": ${list.length} candidates`);
-      options[i] = list;
-    } catch (err) { console.log(`${name} search "${s.query}" failed: ${err.message}`); }
+// Candidates for all the scenes together: each search adds a few in turn, so no search crowds out the others.
+// Stock searches match loosely ("Fort Kochi" finds forts in Europe), so tags must name one of the trip's places.
+async function findPool(post, queries, searches, skip, name) {
+  const words = [...(post.place_words || []), post.place || ''].flatMap(w => w.toLowerCase().split(/\s+/)).filter(w => w.length > 2);
+  const seen = new Set(skip), lists = [];
+  for (const q of [...new Set(queries.filter(Boolean))].slice(0, 14)) {
+    for (const search of searches) {
+      try {
+        const all = await search(q), list = all.filter(c => !seen.has(c.id) && words.some(w => String(c.tags).toLowerCase().includes(w))).slice(0, PER_SEARCH);
+        list.forEach(c => seen.add(c.id));
+        console.log(`${name} search "${q}": ${list.length} of ${all.length} are about the trip`);
+        lists.push(list);
+      } catch (err) { console.log(`${name} search "${q}" failed: ${err.message}`); }
+    }
   }
-  return Array.from({ length: scenes.length }, (_, i) => options[i]);
+  const pool = [];
+  for (let i = 0; i < PER_SEARCH; i++) for (const l of lists) if (l[i] && pool.length < MAX_POOL) pool.push(l[i]);
+  return pool;
 }
 
-// Fills the title and each scene with a downloaded clip or a photo where one fits. Never throws: a scene
-// without a picture is simply left out. Returns [title, ...scenes], each { label, place, detail, clips, photos }.
+// Fills the title and each scene with downloaded clips or photos where they fit. Never throws: a scene
+// without a picture is simply left without. Returns [title, ...scenes], each { label, place, detail, clips, photos }.
 export async function findFootage(client, model, post, used, dir) {
-  const scenes = [{ title: true, place: post.place || post.topic, query: post.photo_queries[0] },
-    ...post.scenes.slice(0, MAX_SCENES)].map(s => ({ ...s, clips: [], photos: [] }));
+  const scenes = [{ title: true, place: post.place || post.topic }, ...post.scenes.slice(0, MAX_SCENES)].map(s => ({ ...s, clips: [], photos: [] }));
   if (!hasKey()) return scenes;
+  const exact = search => q => search(q, { exact: true });
+  const queries = [...post.scenes.map(s => s.query), ...(post.footage_queries || []), ...post.photo_queries];
   try {
-    const options = await candidates(scenes, searchVideos, used, 'Video');
-    const picks = await choose(client, model, post, scenes, options, 'Clip', dir);
+    const picks = await choose(client, model, post, scenes, await findPool(post, queries, [exact(searchVideos)], used, 'Video'), 'Clip', dir);
     for (const [i, list] of picks.entries()) for (const [n, c] of (list || []).entries()) {
       try { scenes[i].clips.push({ ...c, file: await download(c.files[0].url, path.join(dir, `clip-${i}-${n}.mp4`)) }); scenes[i].done = true; }
       catch (err) { console.log(`  ${c.url}: download failed: ${err.message}`); }
     }
   } catch (err) { console.log(`Choosing clips failed: ${err.message}`); }
   try {
-    if (scenes.slice(1).some(s => !s.done)) {
-      const options = await candidates(scenes, searchPhotos, used, 'Photo');
-      const picks = await choose(client, model, post, scenes, options, 'Photo', dir);
+    const missing = scenes.filter(s => !s.done);
+    if (missing.length) {
+      const wanted = [...missing.filter(s => !s.title).flatMap(s => [s.query, s.place]), ...(missing.some(s => s.title) ? post.photo_queries : [])];
+      const picks = await choose(client, model, post, scenes, await findPool(post, wanted, [exact(searchPhotos), searchCommons], used, 'Photo'), 'Photo', dir);
       for (const [i, list] of picks.entries()) for (const c of list || []) {
-        const r = await fetch(c.image);
+        const r = await fetch(c.image, { headers: { 'User-Agent': 'HydHolidaysPostAgent/1.0 (https://www.hydholidays.com)' } });
         if (r.ok) { scenes[i].photos.push({ ...c, buffer: Buffer.from(await r.arrayBuffer()) }); scenes[i].done = true; }
+        else console.log(`  ${c.url}: HTTP ${r.status}`);
       }
     }
   } catch (err) { console.log(`Choosing photos failed: ${err.message}`); }
@@ -148,6 +154,20 @@ async function sceneText(s, accent, n, total) {
     { s: draw(b, C, yb, accent, mid), at: 0.25, move: 'zoom' },
     ...(d.lines.length ? [{ s: `<rect x="${x}" y="${yd}" width="${w}" height="${h}" rx="${Math.min(40, h / 2)}" fill="#000" fill-opacity="0.55"/>${pin}${draw(d, x + 78 + (w - 110) / 2, yd + 17, '#fff', { anchor: 'middle' })}`, at: 0.6, move: 'up' }] : []),
   ] };
+}
+
+// The days as a list, for when some have no picture of their own.
+async function planText(scenes, accent) {
+  const rows = [], head = await fit('Your plan', { font: SERIF, weight: 700 }, 800, 1, 110, 60);
+  for (const s of scenes.slice(0, MAX_SCENES)) rows.push([await fit(s.label || '•', { font: SANS, weight: 700 }, 210, 1, 42, 24), await fit(s.place, { font: SANS, weight: 700, lh: 1.15 }, 580, 2, 46, 28)]);
+  let y = 330 + head.h + 40;
+  const layers = [{ s: draw(head, C, 330, '#fff', mid), at: 0, move: 'zoom' }];
+  rows.forEach(([l, b], i) => {
+    const h = Math.max(l.h, b.h);
+    layers.push({ s: draw(l, 130, y + (b.lh - l.lh) / 2, '#fff', { extra: glow }) + draw(b, 360, y, accent, { extra: glow }), at: 0.2 + i * 0.12, move: 'left' });
+    y += h + Math.min(34, 620 / rows.length - 46 > 8 ? 34 : 18);
+  });
+  return { base: `<rect width="${W}" height="${H}" fill="#000" fill-opacity="0.5"/>`, layers };
 }
 
 async function endText(t, accent, p) {
@@ -199,8 +219,8 @@ export async function renderReel({ title, scenes, look: turn, music, dir, out })
   const p = paletteFor(turn), accent = ACCENTS[turn % ACCENTS.length];
   const plain = { photo: await sharp(pattern(W, H, p)).png().toBuffer() };
   const pics = s => [...s.clips.map(clip => ({ clip })), ...s.photos.map(x => ({ photo: x.buffer }))].slice(0, 2);
-  let days = scenes.slice(1).filter(s => pics(s).length);
-  if (days.length < 2) days = scenes.slice(1); // too little footage: keep the plan and use the plain pattern
+  const days = scenes.slice(1).filter(s => pics(s).length);
+  const all = scenes.slice(1), listed = all.length > 0 && days.length < all.length; // some days have no picture
   // The opening and closing shots borrow a day's picture if they have none of their own.
   const own = pics(scenes[0]), borrowed = days.flatMap(pics);
   const first = own.length ? own : borrowed.slice(-2).reverse(), last = own.length ? own[own.length - 1] : borrowed[0];
@@ -212,6 +232,7 @@ export async function renderReel({ title, scenes, look: turn, music, dir, out })
   const parts = [
     { pics: first.length ? first : [plain], seconds: beats(3), text: await titleText(title, accent, p) },
     ...await Promise.all(days.map(async (s, i) => ({ pics: pics(s).length ? pics(s) : [plain], seconds: beats(3), text: await sceneText(s, accent, i, days.length) }))),
+    ...(listed ? [{ pics: first.length ? [...first].reverse() : [plain], seconds: beats(all.length > 5 ? 5 : 4), late: true, text: await planText(all, accent) }] : []),
     { pics: [last || plain], seconds: beats(3.8), late: true, text: await endText(title, accent, p) },
   ];
   const total = parts.reduce((t, s) => t + s.seconds, 0);
@@ -221,6 +242,7 @@ export async function renderReel({ title, scenes, look: turn, music, dir, out })
   let k = 0, image = 0;
   const still = async s => { const file = path.join(dir, `layer-${image++}.png`); fs.writeFileSync(file, await svg(s)); return file; };
   for (const [i, part] of parts.entries()) {
+    part.pics = part.pics.slice(0, 2);
     const full = part.seconds + (i < parts.length - 1 ? CUT : 0), n = part.pics.length;
     for (const [j, s] of part.pics.entries()) {
       const d = n === 1 ? full : j ? full - part.seconds / 2 : part.seconds / 2;

@@ -114,7 +114,8 @@ Facebook, Instagram and YouTube get a Reel of real video clips. It opens with "p
 - For a package or trip idea: one scene for each day of the plan, in order. label is "Day 1", "Day 2" and so on; place is that day's main sight or place in 1-4 words ("Munnar Tea Gardens", "Alleppey Houseboat"), only from the plan. Leave out days with nothing to see (departure, a long transfer). If there are more than ${MAX_SCENES}, group days ("Days 3-4") or keep the best ones.
 - detail: what you do there, in at most 6 words, from the plan ("Shikara ride on Dal Lake"), not repeating place; empty if the plan says no more.
 - For travel news: 3-5 scenes of what the post is about, with an empty label.
-- query is a stock search for that scene, 1-3 words with the place name last ("tea Munnar", "houseboat Alleppey", "Radhanagar beach"), as words are dropped from the front if nothing is found.
+- query is a stock search for that scene, 1-2 words: its best-known place or sight by the most common name ("Munnar", "Alleppey", "Radhanagar beach").
+Also give footage_queries: 5-8 wider stock searches of 1-3 words for footage of the same trip, from the state or country to its typical sights ("Kerala", "Kerala backwaters", "houseboat India", "tea plantation India", "Kathakali"). And place_words: 6-15 single words, one of which must be in a stock item's tags for it to be about this trip: every town, sight, region, state and country on the route, with other spellings and old names ("kerala", "munnar", "alleppey", "alappuzha", "kochi", "cochin", "thekkady", "periyar", "india").
 
 Our own packages: ${PACKAGE_GUIDE}
 
@@ -131,6 +132,8 @@ const Post = z.object({
   }),
   photo_queries: z.array(z.string()),
   place: z.string(),
+  place_words: z.array(z.string()),
+  footage_queries: z.array(z.string()),
   scenes: z.array(z.object({ label: z.string(), place: z.string(), detail: z.string(), query: z.string() })),
   facebook: z.string(),
   instagram: z.string(),
