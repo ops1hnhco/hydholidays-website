@@ -110,8 +110,9 @@ X gets a still image with your card text. Card text: a 2-4 word kicker, a headli
 
 photo_queries are 3 stock searches of 1-3 words each, used for the image's photo and the Reel's opening shot: beautiful, recognisable views of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["mountain road trip", "beach sunset"]. Never ask for people's faces, flags or logos.
 
-Facebook, Instagram and YouTube get a Reel of real video clips. It opens with "place" in big letters (the destination's everyday name, at most 25 characters), then shows your scenes, about 3 seconds each, with the label and place over the clip, and ends with our contact details. Scenes:
+Facebook, Instagram and YouTube get a Reel of real video clips. It opens with "place" in big letters (the destination's everyday name, at most 25 characters), then shows your scenes, about 3 seconds each, with the label, place and detail over the clip, and ends with our contact details. Scenes:
 - For a package or trip idea: one scene for each day of the plan, in order. label is "Day 1", "Day 2" and so on; place is that day's main sight or place in 1-4 words ("Munnar Tea Gardens", "Alleppey Houseboat"), only from the plan. Leave out days with nothing to see (departure, a long transfer). If there are more than ${MAX_SCENES}, group days ("Days 3-4") or keep the best ones.
+- detail: what you do there, in at most 6 words, from the plan ("Shikara ride on Dal Lake"), not repeating place; empty if the plan says no more.
 - For travel news: 3-5 scenes of what the post is about, with an empty label.
 - query is a stock search for that scene, 1-3 words with the place name last ("tea Munnar", "houseboat Alleppey", "Radhanagar beach"), as words are dropped from the front if nothing is found.
 
@@ -130,7 +131,7 @@ const Post = z.object({
   }),
   photo_queries: z.array(z.string()),
   place: z.string(),
-  scenes: z.array(z.object({ label: z.string(), place: z.string(), query: z.string() })),
+  scenes: z.array(z.object({ label: z.string(), place: z.string(), detail: z.string(), query: z.string() })),
   facebook: z.string(),
   instagram: z.string(),
   x: z.string(),
@@ -453,8 +454,8 @@ const used = new Set(history.slice(-20).flatMap(h => [h.photo, ...(h.media || []
 const photo = await findPhoto(client, post, used);
 console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain pattern'}`);
 const scenes = await findFootage(client, MODEL, post, used, OUT_DIR);
-const clips = scenes.map(s => s.clip).filter(Boolean), stills = scenes.map(s => s.photo).filter(Boolean);
-console.log(`Reel:\n${scenes.map(s => `- ${s.title ? 'Title' : s.label || 'Scene'}: ${s.place} · ${s.clip ? `clip ${s.clip.url}` : s.photo ? `photo ${s.photo.url}` : 'nothing that shows it'}`).join('\n')}`);
+const clips = scenes.flatMap(s => s.clips), stills = scenes.flatMap(s => s.photos);
+console.log(`Reel:\n${scenes.map(s => `- ${s.title ? 'Title' : s.label || 'Scene'}: ${s.place} · ${[...s.clips.map(c => `clip ${c.url}`), ...s.photos.map(p => `photo ${p.url}`)].join(', ') || 'nothing that shows it'}`).join('\n')}`);
 const look = nextLook(history, now, env('STYLE', ''));
 console.log(`Design: ${lookName(look)}`);
 const image = await stillImage(post.card, photo, look);

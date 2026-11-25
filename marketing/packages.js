@@ -80,6 +80,8 @@ export function checkPost(post, x) {
     if (off) problems.push(`${where}: mentions "${off[0]}", which we don't offer`);
     if (/%\s*off|discount|limited (time|seats|offer)|hurry/i.test(text)) problems.push(`${where}: has a discount or urgency claim`);
   }
+  const said = post.scenes.map(s => `${s.place} ${s.detail || ''}`).join(' ') + ` ${post.place || ''}`, bad = said.match(/\b(e-?visas?|visas?|flights?|airlines?|insurance)\b/i);
+  if (bad) problems.push(`scenes: mentions "${bad[0]}", which we don't offer`);
   for (const s of post.scenes) {
     const m = s.label.match(/^Days? (\d+)(?:\s*[-–]\s*(\d+))?$/);
     if (!m || +(m[2] || m[1]) > days) problems.push(`scenes: label "${s.label}" is not a day of this ${days}-day trip`);
