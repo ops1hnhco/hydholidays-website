@@ -2,9 +2,9 @@
 // Each day Claude researches the web for something worth posting to Indian travellers
 // in turn: a domestic package idea, an international package idea or travel news,
 // checks what was posted recently, writes captions for each platform and the text for a
-// branded design with a Pixabay (or Pexels) photo of the destination; the design changes every post
-// (styles.js). The agent renders a still image
-// and a 15-second video, and posts Reels to Facebook and Instagram, a Short to YouTube, and the image to X.
+// branded image, whose design changes every post (styles.js). It makes that image with a Pixabay (or Pexels)
+// photo of the destination and a 15-second video from real clips of it (reel.js), and posts Reels to Facebook
+// and Instagram, a Short to YouTube, and the image to X.
 // Run by .github/workflows/social-post.yml. Credentials come from environment variables
 // (see marketing/README.md). A platform without credentials is skipped. With OFFER set (an offer
 // approved on WhatsApp, see whatsapp.js), it posts that offer instead of researching a topic.
@@ -13,18 +13,17 @@
 //   BRIEF="Winter trips from Hyderabad" node agent.js  steer today's post
 //   KIND="travel news" node agent.js                   choose the kind instead of today's turn
 //   STYLE=postcard node agent.js                       choose the design instead of its turn
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import ffmpegPath from 'ffmpeg-static';
 import sharp from 'sharp';
 import { TwitterApi } from 'twitter-api-v2';
 import { z } from 'zod';
 import { NOT_OFFERED_NOTE, OFFER_GUIDE, offerBrief, readOffer } from './offer.js';
-import { layers, lookName, nextLook, stillImage, videoFilter } from './styles.js';
+import { findClips, renderReel } from './reel.js';
+import { lookName, nextLook, stillImage } from './styles.js';
 
 const env = (k, d) => (process.env[k] || d);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -104,9 +103,9 @@ Platforms:
 - YouTube Short: a title of at most 80 characters (no hashtags; "#Shorts" is added), and a description of 60-150 words that ends with 3-5 hashtags. Our website and WhatsApp details are added after the description.
 Write each platform's text separately so they do not read as copies.
 
-Facebook and Instagram get a 15-second Reel and YouTube a Short: a photo of the destination slowly zooming, with your card text over it. The same design is the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
+Facebook and Instagram get a 15-second Reel and YouTube a Short: real video clips of the destination, with your card text over them: the kicker and headline first, then the supporting line. The same text goes on the still image. Card text: a 2-4 word kicker, a headline of at most 60 characters carrying the main point, and a supporting line of at most 90 characters (or empty).
 
-photo_queries are 3 stock-photo searches of 1-3 words each for a beautiful, recognisable photo of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["mountain road trip", "beach sunset"]. Never ask for people's faces, flags or logos.
+photo_queries are 3 stock searches of 1-3 words each, used for both a photo and video clips: beautiful, recognisable views of the place the post is about, from most specific to more general but always the same place, e.g. ["Rann of Kutch", "Kutch", "Gujarat"] or ["Halong Bay", "Hanoi", "Vietnam"]. The photo library only returns photos tagged with every word, so keep searches short, use the most common spelling (including one-word forms like "Halong"), and end with the country or state on its own. Stock libraries know famous names better than local ones, so use the best-known landmark or region name. For news without one place, describe a fitting travel scene, e.g. ["mountain road trip", "beach sunset"]. Never ask for people's faces, flags or logos.
 
 Our own offers: ${OFFER_GUIDE} Put the price, if any, in the card's subline. sources is empty.${NOT_OFFERED_NOTE}`;
 
@@ -225,10 +224,10 @@ async function searchPexels(query, key) {
 
 const PhotoChoice = z.object({
   reason: z.string().describe('One sentence on why this photo, or why none fits'),
-  photo: z.number().int().describe('The number of the chosen photo, or 0 if none of them fits'),
+  photos: z.array(z.number().int()).describe('Numbers of the photos that fit, best first; empty if none fits'),
 });
 
-async function choosePhoto(client, post, candidates) {
+async function choosePhotos(client, post, candidates, want) {
   const shown = [], content = [];
   for (const c of candidates) {
     const r = await fetch(c.preview).catch(err => ({ ok: false, status: err.message }));
@@ -237,12 +236,12 @@ async function choosePhoto(client, post, candidates) {
     shown.push(c);
     content.push({ type: 'text', text: `Photo ${shown.length} (tags: ${c.tags || 'none'})` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: jpg.toString('base64') } });
   }
-  if (!shown.length) return null;
+  if (!shown.length) return [];
   content.push({ type: 'text', text: `These are candidate background photos for a social media post by an Indian travel agency.
 Post: ${post.topic}
 Headline on the image: ${post.card.headline}
 
-Pick the photo that best suits the post. If the post is about a particular place, the photo must clearly show that place (or, failing that, an unmistakable part of the same region): someone who knows it should recognise it. A similar-looking place elsewhere is not acceptable, and neither is a photo whose tags name a different place. For general topics, any photo that fits the subject is fine. Prefer clear, attractive scenes without close-up faces, text, logos or flags. Answer 0 if none is right; we then use a plain design, which is far better than a misleading photo.` });
+Pick up to ${want} photos that suit the post, best first, showing different views. If the post is about a particular place, each photo must clearly show that place (or, failing that, an unmistakable part of the same region): someone who knows it should recognise it. A similar-looking place elsewhere is not acceptable, and neither is a photo whose tags name a different place. For general topics, any photo that fits the subject is fine. Prefer clear, attractive scenes without close-up faces, text, logos or flags. Choose none if none is right; we then use a plain design, which is far better than a misleading photo.` });
   const res = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 4000,
@@ -251,32 +250,34 @@ Pick the photo that best suits the post. If the post is about a particular place
     output_config: { effort: 'low', format: betaZodOutputFormat(PhotoChoice) },
     messages: [{ role: 'user', content }],
   });
-  const n = res.parsed_output?.photo;
-  console.log(`  ${shown.length} photos checked, Claude chose ${n || 'none'}: ${res.parsed_output?.reason || res.stop_reason}`);
-  return n >= 1 && n <= shown.length ? shown[n - 1] : null;
+  const picks = [...new Set(res.parsed_output?.photos || [])].filter(n => n >= 1 && n <= shown.length).slice(0, want);
+  console.log(`  ${shown.length} photos checked, Claude chose ${picks.join(', ') || 'none'}: ${res.parsed_output?.reason || res.stop_reason}`);
+  return picks.map(n => shown[n - 1]);
 }
 
-async function findPhoto(client, post, history) {
+async function findPhotos(client, post, used, want) {
   const pixabay = env('PIXABAY_API_KEY'), pexels = env('PEXELS_API_KEY');
-  if (!(pixabay || pexels)) return null;
-  const used = new Set(history.map(h => h.photo).filter(Boolean));
+  if (!(pixabay || pexels)) return [];
   for (const query of post.photo_queries.slice(0, 3)) {
     try {
       const found = (pixabay ? await searchPixabay(query, pixabay) : await searchPexels(query, pexels)).filter(x => !used.has(x.id)).slice(0, 8);
       console.log(`Photo search "${query}": ${found.length} results`);
-      const p = found.length ? await choosePhoto(client, post, found) : null;
-      if (!p) { console.log(`Photo search "${query}": nothing that shows the subject`); continue; }
-      const img = await fetch(p.image);
-      if (!img.ok) throw new Error(`HTTP ${img.status}`);
-      return { id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url, query };
+      const photos = [];
+      for (const p of found.length ? await choosePhotos(client, post, found, want) : []) {
+        const img = await fetch(p.image);
+        if (img.ok) photos.push({ id: p.id, buffer: Buffer.from(await img.arrayBuffer()), credit: p.credit, url: p.url, query });
+        else console.log(`  photo ${p.url}: HTTP ${img.status}`);
+      }
+      if (photos.length) return photos;
+      console.log(`Photo search "${query}": nothing that shows the subject`);
     } catch (err) {
       console.log(`Photo search "${query}" failed: ${err.message}`);
     }
   }
-  return null;
+  return [];
 }
 
-// ---- Video ----
+// ---- Music ----
 
 // Royalty-free tracks in marketing/music/*.mp3 take turns, one per day (or marketing/music.mp3).
 function pickMusic(now) {
@@ -285,25 +286,6 @@ function pickMusic(now) {
   if (tracks.length) return tracks[Math.floor(now.getTime() / 86400e3) % tracks.length];
   const one = path.join(HERE, 'music.mp3');
   return fs.existsSync(one) ? one : null;
-}
-
-// 15-second 1080x1920 video for Reels and Shorts: the photo moves slowly, the text comes in (both depend
-// on the design), the music fades out at the end. Silent if there is no music.
-async function renderVideo(post, photo, look, now) {
-  const l = await layers(post.card, photo, look, 1920), video = path.join(OUT_DIR, 'video.mp4');
-  const inputs = [['video-bg.jpg', l.bg], ['video-frame.png', l.frame], ['video-text.png', l.text]].flatMap(([name, data]) => {
-    const file = path.join(OUT_DIR, name);
-    fs.writeFileSync(file, data);
-    return ['-loop', '1', '-i', file];
-  });
-  const music = pickMusic(now);
-  const audio = music ? ['-stream_loop', '-1', '-i', music] : ['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo'];
-  execFileSync(ffmpegPath, [
-    '-y', ...inputs, ...audio, '-filter_complex', videoFilter(l),
-    '-map', '[v]', '-map', '[a]', '-t', '15', '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
-    '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', video,
-  ], { stdio: ['ignore', 'ignore', 'pipe'] });
-  return video;
 }
 
 // ---- Publishing ----
@@ -461,16 +443,24 @@ const held = !(confirmed(brief) && post.ready);
 console.log(`Today: ${post.kind} · ${post.topic}${DRY_RUN ? ' · DRY RUN' : ''}${held ? ' · HELD, facts not confirmed' : ''}\n\n--- Research brief ---\n${brief}`);
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-const photo = await findPhoto(client, post, history);
+const used = new Set(history.flatMap(h => [h.photo, ...(h.media || [])]).filter(Boolean));
+const clips = await findClips(client, MODEL, post, used, OUT_DIR);
+const photos = await findPhotos(client, post, used, Math.max(1, 4 - clips.length)); // the image's photo, and any the video needs
+const photo = photos[0];
+console.log(`Clips: ${clips.map(c => c.url).join(', ') || 'none that show the subject'}`);
 console.log(`Photo: ${photo ? `${photo.url} (search "${photo.query}")` : 'none that shows the subject, plain card'}`);
 const look = nextLook(history, now, env('STYLE', ''));
 console.log(`Design: ${lookName(look)}`);
 const image = await stillImage(post.card, photo, look);
 fs.writeFileSync(path.join(OUT_DIR, 'post.jpg'), image);
-const video = await renderVideo(post, photo, look, now);
+const video = await renderReel({ card: post.card, clips, photos, look, music: pickMusic(now), dir: OUT_DIR, out: path.join(OUT_DIR, 'video.mp4') });
 
 const link = `${SITE}/`;
-const credit = photo ? `\n\n📷 ${photo.credit}` : '';
+const names = [...new Set(clips.map(c => c.credit).filter(Boolean))];
+const credit = [
+  names.length && `🎥 Video: ${names.join(', ')} on ${clips[0].site}`,
+  photo && `📷 ${[...new Set((clips.length >= 4 ? [photo] : photos).map(p => p.credit))].join('; ')}`,
+].filter(Boolean).map((c, i) => `${i ? '\n' : '\n\n'}${c}`).join('');
 const out = {
   facebook: `${post.facebook.trim()}\n\n${link}${credit}`,
   instagram: `${post.instagram.trim()}${credit}`,
@@ -480,7 +470,7 @@ const out = {
     description: `${post.youtube.description.trim()}\n\nPlan your trip with Hyderabad Holidays Co.\nWhatsApp ${WHATSAPP} · ${link}${credit}`,
   },
 };
-fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, design: lookName(look), photo: photo && { url: photo.url, credit: photo.credit }, brief, final: out }, null, 2));
+fs.writeFileSync(path.join(OUT_DIR, 'post.json'), JSON.stringify({ ...post, design: lookName(look), photo: photo && { url: photo.url, credit: photo.credit }, clips: clips.map(c => ({ url: c.url, credit: c.credit })), brief, final: out }, null, 2));
 
 const platforms = [
   { name: 'Facebook', keys: ['FB_PAGE_ID', 'FB_PAGE_ACCESS_TOKEN'], text: out.facebook, run: () => reelOrPhoto(() => postFacebookReel(out.facebook, video), () => postFacebookPhoto(out.facebook, image)) },
@@ -509,13 +499,13 @@ for (const p of platforms) {
 }
 
 if (posted) {
-  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id, look });
+  history.push({ date: now.toISOString().slice(0, 10), kind: post.kind, topic: post.topic, sources: post.sources, photo: photo?.id, media: [...clips, ...photos].map(m => m.id), look });
   saveHistory(history);
 }
 if (env('GITHUB_STEP_SUMMARY')) {
   fs.appendFileSync(env('GITHUB_STEP_SUMMARY'), [
     `## ${post.kind}: ${post.topic}${held ? ' (HELD: facts not confirmed, nothing posted)' : ''}`,
-    `Photo: ${photo ? `${photo.url} (${photo.credit})` : 'none, plain brand card'}. Design: ${lookName(look)}. Image and video: download the run's "post" artifact.`,
+    `Video clips: ${clips.map(c => c.url).join(', ') || 'none, made from photos'}. Photo: ${photo ? `${photo.url} (${photo.credit})` : 'none, plain brand card'}. Design: ${lookName(look)}. Image and video: download the run's "post" artifact.`,
     `Sources:\n${post.sources.map(s => `- ${s}`).join('\n') || '- none listed'}`,
     ...report,
     `<details><summary>Research brief</summary>\n\n${brief}\n\n</details>\n`,
